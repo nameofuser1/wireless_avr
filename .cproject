@@ -24,7 +24,7 @@
 							<tool command="gcc" id="cdt.managedbuild.tool.gnu.cross.c.compiler.434874931" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
 								<option defaultValue="gnu.c.optimization.level.none" id="gnu.c.compiler.option.optimization.level.1658006816" name="Optimization Level" superClass="gnu.c.compiler.option.optimization.level" useByScannerDiscovery="false" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.debugging.level.658822877" name="Debug Level" superClass="gnu.c.compiler.option.debugging.level" useByScannerDiscovery="false" value="gnu.c.debugging.level.max" valueType="enumerated"/>
-								<option id="gnu.c.compiler.option.misc.other.1152964670" name="Other flags" superClass="gnu.c.compiler.option.misc.other" useByScannerDiscovery="false" value="-c -mthumb -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -g3 -O0 -ggdb -std=c99" valueType="string"/>
+								<option id="gnu.c.compiler.option.misc.other.1152964670" name="Other flags" superClass="gnu.c.compiler.option.misc.other" useByScannerDiscovery="false" value="-c -mthumb -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -g3 -O0 -ggdb -std=c99 -ffunction-sections" valueType="string"/>
 								<option id="gnu.c.compiler.option.include.paths.233414172" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="/home/kripton/Applications/EmbeddedArm/newlib/include"/>
 									<listOptionValue builtIn="false" value="/home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_core"/>
@@ -38,6 +38,8 @@
 									<listOptionValue builtIn="false" value="STM32F10X_MD"/>
 									<listOptionValue builtIn="false" value="USE_STDPERIPH_DRIVER"/>
 								</option>
+								<option id="gnu.c.compiler.option.warnings.toerrors.1077149183" name="Warnings as errors (-Werror)" superClass="gnu.c.compiler.option.warnings.toerrors" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+								<option id="gnu.c.compiler.option.warnings.extrawarn.1890701430" name="Extra warnings (-Wextra)" superClass="gnu.c.compiler.option.warnings.extrawarn" useByScannerDiscovery="false" value="false" valueType="boolean"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1179323057" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.1639218880" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler">
@@ -45,7 +47,7 @@
 								<option id="gnu.cpp.compiler.option.debugging.level.1499256855" name="Debug Level" superClass="gnu.cpp.compiler.option.debugging.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.debugging.level.max" valueType="enumerated"/>
 							</tool>
 							<tool command="gcc" id="cdt.managedbuild.tool.gnu.cross.c.linker.180093836" name="Cross GCC Linker" superClass="cdt.managedbuild.tool.gnu.cross.c.linker">
-								<option id="gnu.c.link.option.ldflags.1620156369" name="Linker flags" superClass="gnu.c.link.option.ldflags" value="-T &quot;${ProjDirPath}/stm32f103.ld&quot; -g3  -ggdb -O0 -mthumb -mcpu=cortex-m3 -mfix-cortex-m3-ldrd   -Wl,-Map=linker.map -Wl,-cref  -Wl,--gc-sections" valueType="string"/>
+								<option id="gnu.c.link.option.ldflags.1620156369" name="Linker flags" superClass="gnu.c.link.option.ldflags" value="-T &quot;${ProjDirPath}/stm32f103.ld&quot; -g3  -ggdb -O0 -mthumb -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -Wl,-Map=linker.map -Wl,-cref -Wl,--gc-sections" valueType="string"/>
 								<option id="gnu.c.link.option.strip.1920491530" name="Omit all symbol information (-s)" superClass="gnu.c.link.option.strip" value="false" valueType="boolean"/>
 								<option id="gnu.c.link.option.paths.1220040635" name="Library search path (-L)" superClass="gnu.c.link.option.paths" valueType="libPaths">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/lib}&quot;"/>

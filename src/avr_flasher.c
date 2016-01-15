@@ -80,40 +80,28 @@ void AVRFlasher_reset_pulse(uint16_t duration)
  * Send command to AVR
  * *******************************************
  */
-uint8_t AVRFlasher_send_command(AvrCommand *command)
+void AVRFlasher_send_command(AvrCommand *command, uint8_t *res)
 {
-	uint8_t res = 0;
 	for(int i=0; i<4; i++)
 	{
 		uint8_t cmd_byte = *(((uint8_t*)command)+i);
-		if(cmd_byte != AT16_ANSWER_BYTE)
-		{
-			printf("Write command byte 0x%02x to send buffer\r\n", cmd_byte);
-			SPI_write(SPI1, cmd_byte);
-		}
-		else
-		{
-			SPI_write(SPI1, 0x00);
-		}
+		SPI_write(SPI1, cmd_byte);
 
 		while(!(SPI1->SR & SPI_SR_RXNE));
-		res = SPI1->DR;
-		printf("Read answer: %d\r\n", res);
+		res[i] = SPI1->DR;
 	}
-
-	return res;
 }
 
 
 void AVRFlasher_prog_enable(void)
 {
-	AvrCommand command;
-	command.b1 = AT16_PROG_EN_B1;
-	command.b2 = AT16_PROG_EN_B2;
-	command.b3 = AT16_PROG_EN_B3;
-	command.b4 = AT16_PROG_EN_B4;
+	//AvrCommand command;
+	//command.b1 = AT16_PROG_EN_B1;
+	//command.b2 = AT16_PROG_EN_B2;
+	//command.b3 = AT16_PROG_EN_B3;
+	//command.b4 = AT16_PROG_EN_B4;
 
-	AVRFlasher_send_command(&command);
+	//AVRFlasher_send_command(&command);
 
 	PROG_STATE = STATE_WAIT_DATA;
 	//TIM1_set_duration(WAIT_DATA_DURATION);

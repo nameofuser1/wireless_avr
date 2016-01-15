@@ -11,7 +11,21 @@ src/UART.d: ../src/UART.c ../src/UART.h \
  /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_gpio.h \
  /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x.h \
  /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_rcc.h \
- /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_usart.h
+ /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_usart.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/stdio.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/_ansi.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/newlib.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/sys/config.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/machine/ieeefp.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/sys/cdefs.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/sys/reent.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/_ansi.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/sys/_types.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/machine/_types.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/sys/lock.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/sys/types.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/machine/types.h \
+ /home/kripton/Applications/EmbeddedArm/newlib/include/sys/stdio.h
 
 ../src/UART.h:
 
@@ -40,3 +54,31 @@ src/UART.d: ../src/UART.c ../src/UART.h \
 /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_rcc.h:
 
 /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_usart.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/stdio.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/_ansi.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/newlib.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/sys/config.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/machine/ieeefp.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/sys/cdefs.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/sys/reent.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/_ansi.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/sys/_types.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/machine/_types.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/sys/lock.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/sys/types.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/machine/types.h:
+
+/home/kripton/Applications/EmbeddedArm/newlib/include/sys/stdio.h:

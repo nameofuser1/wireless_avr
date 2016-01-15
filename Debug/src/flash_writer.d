@@ -11,7 +11,6 @@ src/flash_writer.d: ../src/flash_writer.c ../src/flash_writer.h \
  /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_gpio.h \
  /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x.h \
  /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_rcc.h \
- /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_spi.h \
  /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_usart.h
 
 ../src/flash_writer.h:
@@ -39,7 +38,5 @@ src/flash_writer.d: ../src/flash_writer.c ../src/flash_writer.h \
 /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x.h:
 
 /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_rcc.h:
-
-/home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_spi.h:
 
 /home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_inc/stm32f10x_usart.h:

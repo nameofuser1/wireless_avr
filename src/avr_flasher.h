@@ -13,6 +13,10 @@
 #include "stm32f10x_usart.h"
 #include "spi.h"
 
+#define ACK_PACKET_BYTE 	0xAA
+#define INIT_PACKET_BYTE	0xFF
+#define STOP_PACKET_BYTE	0x01
+
 /*
  * APB2 has 36MHz frequency so TIM will have 1ms tick
  * Reset duration is 25ms according to AT16 datasheet(at least 20 ms)
@@ -42,12 +46,12 @@
 
 
 
-void 	AVRFlasher_init(void);
-void 	AVRFlasher_start(void);
-uint8_t AVRFlasher_get_state(void);
-void 	AVRFlasher_reset(uint16_t duration);
-uint8_t AVRFlasher_send_command(AvrCommand *command);
-void 	AVRFlasher_prog_enable(void);
+void 		AVRFlasher_init(void);
+void 		AVRFlasher_start(void);
+uint8_t 	AVRFlasher_get_state(void);
+void 		AVRFlasher_reset(uint16_t duration);
+void 	AVRFlasher_send_command(AvrCommand *command, uint8_t *res);
+void 		AVRFlasher_prog_enable(void);
 
 
 void AVRFlasher_reset_enable(void);

@@ -1,32 +1,21 @@
-#include <common/CircularBuffer.h>
 #include "stm32f10x_conf.h"
 #include "stm32f10x.h"
 #include <stdio.h>
-#include <stdbool.h>
 #include "spi.h"
 #include "UART.h"
-#include "avr_flasher.h"
-#include "soft_timers/SoftwareTimer2.h"
-
+#include "controller.h"
 
 void CLOCK_init(void);
-CircularBuffer usart_buffer;
-static bool send_pr(void);
+//static bool send_pr(void);
 static void gpio_init(void);
+void gpio_switch(void);
 
-SoftwareTimer timer;
-
-void gpio_switch(void)
-{
-	GPIOA->ODR ^= GPIO_ODR_ODR1;
-}
 
 int main(void)
 {
 	CLOCK_init();
 	__enable_irq();
 	gpio_init();
-	CircularBuffer_alloc(&usart_buffer, 1024);
 
 	USART1_init();
 	USART_Cmd(USART1, ENABLE);
@@ -37,21 +26,23 @@ int main(void)
 	NVIC_EnableIRQ(USART3_IRQn);
 	USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
 
-	SoftwareTimer2_init();
-	SoftwareTimer2_set_duration(1);	//10 ms
-	SoftwareTimer2_start();
-
 	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
-
-	SPI_init(SPI1);
-	SPI_enable(SPI1);
-
+/*
+	const uint8_t test[4] = {0x01, 0x05, 0x10, 0x15};
+	while(1)
+	{
+		USART_SendArray(USART3, test, 4);
+		for(volatile uint32_t i = 0; i<10000000;i++);
+		gpio_switch();
+	}
+	*/
+/*
 	SoftwareTimer wait_at_ready_timer;
 	SoftwareTimer_init(&wait_at_ready_timer);
 	uint8_t retries = 0;
 	bool success = false;
 
-	while(!success && retries < 15)
+	while(!success && retries < 30)
 	{
 		AVRFlasher_reset_enable();
 		SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 25);
@@ -75,20 +66,34 @@ int main(void)
 		AvrCommand command;
 		command.b1 = AT16_RD_SIG_B1;
 		command.b2 = AT16_RD_SIG_B2;
-		command.b3 = AT16_RD_VENDOR_CODE;
+		command.b3 = AT16_RD_PART_FAMILY;
 		command.b4 = AT16_ANSWER_BYTE;
 		volatile uint8_t answer = AVRFlasher_send_command(&command);
 		printf("Read vendor code: 0x%02x\r\n", answer);
 	}
 
 	AVRFlasher_reset_disable();
-
+*/
+	printf("Init\r\n");
+	CONTROLLER_init();
 	while(1)
 	{
-		if(!CircularBuffer_is_empty(&usart_buffer))
+		ResultCode code = CONTROLLER_perform_action();
+		ProgramState state = CONTROLLER_get_state();
+		switch(code)
 		{
-			uint8_t data = *(uint8_t*)(CircularBuffer_get(&usart_buffer));
-			USART_SendData(USART1, data);
+			case NONE:
+				break;
+
+			case INITIAL_ERROR:
+				printf("Initial error in state %d\r\n", state);
+				CONTROLLER_clear_error();
+				break;
+
+			case TIMEOUT:
+				printf("Timeout error in state %d\r\n", state);
+				CONTROLLER_clear_error();
+				break;
 		}
 	}
 
@@ -115,17 +120,7 @@ void CLOCK_init(void)
     RCC->CFGR |= RCC_CFGR_PPRE1_DIV2;
 }
 
-
-void USART3_IRQHandler(void)
-{
-	if(USART_GetITStatus(USART3, USART_IT_RXNE) == SET)
-	{
-		uint8_t data = (uint8_t)(USART_ReceiveData(USART3) & 0xFF);
-		CircularBuffer_put(&usart_buffer, (void*)&data);
-	}
-}
-
-
+/*
 static bool send_pr(void)
 {
 	bool res = true;
@@ -149,7 +144,7 @@ static bool send_pr(void)
 	answer = SPI1->DR;
 	return res;
 }
-
+*/
 
 static void gpio_init(void)
 {
@@ -188,7 +183,10 @@ static void gpio_init(void)
 }
 
 
-
+void gpio_switch(void)
+{
+	GPIOA->ODR ^= GPIO_ODR_ODR1;
+}
 
 
 

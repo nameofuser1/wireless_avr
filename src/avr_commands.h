@@ -143,7 +143,10 @@
 #define AT16_RD_VENDOR_CODE		0x00
 #define AT16_RD_PART_FAMILY		0x01
 #define AT16_RD_PART_NUMBER		0x02
-#define AT16_RD_SIG_B3_MASK		0x03
+
+#define AT16_VENDOR_CODE		0x1E
+#define AT16_PART_FAMILY
+#define AT16_PART_NUMBER
 
 /*
  * Read fuse bits (as I understand LOW fuse)
@@ -245,6 +248,7 @@
 #define AT16_WRT_EXTFUSE_B1		0xAC
 #define AT16_WRT_EXTFUSE_B2		0xA4
 #define AT16_WRT_EXTFUSE_B3		0x00
+
 
 
 typedef struct {

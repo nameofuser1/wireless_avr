@@ -33,7 +33,7 @@ all: SPI_stm32f10x.elf
 SPI_stm32f10x.elf: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Linker'
-	arm-none-eabi-gcc -L"/home/kripton/Applications/ARM_workspace/SPI_stm32f10x/lib" -T "/home/kripton/Applications/ARM_workspace/SPI_stm32f10x/stm32f103.ld" -g3  -ggdb -O0 -mthumb -mcpu=cortex-m3 -mfix-cortex-m3-ldrd   -Wl,-Map=linker.map -Wl,-cref  -Wl,--gc-sections -o "SPI_stm32f10x.elf" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-none-eabi-gcc -L"/home/kripton/Applications/ARM_workspace/SPI_stm32f10x/lib" -T "/home/kripton/Applications/ARM_workspace/SPI_stm32f10x/stm32f103.ld" -g3  -ggdb -O0 -mthumb -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -Wl,-Map=linker.map -Wl,-cref -Wl,--gc-sections -o "SPI_stm32f10x.elf" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 	$(MAKE) --no-print-directory post-build

@@ -75,7 +75,7 @@ void FLASH_read_block(uint32_t start_addr, uint32_t *buf, uint16_t len)
 	uint16_t i = 0;
 	for(i = 0; i<len; i++)
 	{
-		buf[i] = FLASH_read(start_addr);
+		buf[i] = FLASH_read_word(start_addr);
 		start_addr+=4;
 	}
 }

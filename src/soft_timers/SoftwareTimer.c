@@ -39,8 +39,9 @@ void SoftwareTimer_add_cb(SoftwareTimer *tim, SoftTimerCallback cb)
  * Preparing timer for start
  * *****************************************
  */
-void SoftwareTimer_arm(SoftwareTimer *tim, SoftTimerType type, unsigned int length)
+void SoftwareTimer_arm(SoftwareTimer *tim, SoftTimerType type, uint32_t length)
 {
+	tim->state = Idle;
     tim->type = type;
 	tim->length = length;
 	tim->ticks = length;
@@ -56,8 +57,8 @@ void SoftwareTimer_arm(SoftwareTimer *tim, SoftTimerType type, unsigned int leng
  */
 void SoftwareTimer_start(SoftTimerList *list, SoftwareTimer *timer)
 {
-	uint32_t timer_length = timer->length;
 	timer->state = Active;
+	uint32_t timer_length = timer->length;
 	LinkedListNode *new_node = (LinkedListNode*)malloc(sizeof(LinkedListNode));
 	new_node->data = (void*)timer;
 	new_node->next = NULL;
@@ -113,41 +114,34 @@ void SoftwareTimer_tick(SoftTimerList *list)
 		SoftwareTimer *tim = (SoftwareTimer*)(node->data);
 		if(tim != NULL)
 		{
-			//if(tim->state == Active)
-			//{
-				if(tim->ticks > 1)
+			if(tim->ticks > 1)
+			{
+				tim->ticks -= 1;
+				prev_node = node;
+				node = node->next;
+			}
+			else
+			{
+				if(tim->cb != NULL)
 				{
-					tim->ticks -= 1;
-					prev_node = node;
-					node = node->next;
+					tim->cb();
+				}
+
+				tim->state = Done;
+				LinkedList_add(&done_timers, (void*)tim);
+				if(node == list->head)
+				{
+					list->head = node->next;
+					free(node);
+					node = list->head;
 				}
 				else
 				{
-					if(tim->cb != NULL)
-					{
-						tim->cb();
-					}
-
-					tim->state = Done;
-					LinkedList_add(&done_timers, (void*)tim);
-					if(node == list->head)
-					{
-						list->head = node->next;
-						free(node);
-						node = list->head;
-					}
-					else
-					{
-						prev_node->next = node->next;
-						free(node);
-						node = prev_node->next;
-					}
+					prev_node->next = node->next;
+					free(node);
+					node = prev_node->next;
 				}
-			//}
-			//else
-			//{
-				//tim->state = Active;
-			//}
+			}
 		}
 	}
 
