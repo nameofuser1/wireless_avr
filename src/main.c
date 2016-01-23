@@ -31,63 +31,6 @@ int main(void)
 
 	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 
-/************************************************/
-
-	SoftwareTimer2_init();
-	SoftwareTimer2_start();
-	SoftwareTimer2_set_duration(1);
-
-	SPI_init(SPI1);
-	SPI_enable(SPI1);
-	printf("Init\r\n");
-
-	SoftwareTimer wait_at_ready_timer;
-	SoftwareTimer_init(&wait_at_ready_timer);
-	uint8_t retries = 0;
-	bool success = false;
-
-	while(!success && retries < 30)
-	{
-		AVRFlasher_reset_enable();
-
-		SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 25);
-		SoftwareTimer_start(&soft_timer2, &wait_at_ready_timer);
-		SoftwareTimer_wait_for(&wait_at_ready_timer);
-		success = send_pr();
-		retries++;
-
-		if(!success)
-		{
-			AVRFlasher_reset_disable();
-			SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 20);
-			SoftwareTimer_start(&soft_timer2, &wait_at_ready_timer);
-			SoftwareTimer_wait_for(&wait_at_ready_timer);
-		}
-	}
-
-	printf(success ? "Successful\r\n" : "Failed\r\n");
-	if(success)
-	{
-		AvrCommand command;
-		command.b1 = AT16_RD_SIG_B1;
-		command.b2 = AT16_RD_SIG_B2;
-		command.b3 = AT16_RD_PART_FAMILY;
-		command.b4 = AT16_ANSWER_BYTE;
-		uint8_t answer[4];
-		AVRFlasher_send_command(&command, answer);
-		printf("Read vendor code: 0x%02x\r\n", answer[3]);
-	}
-
-	AVRFlasher_reset_disable();
-
-	while(1)
-	{
-
-	}
-
-/*****************************************************************/
-
-	/*
 	printf("Init\r\n");
 	CONTROLLER_init();
 	while(1)
@@ -109,7 +52,7 @@ int main(void)
 				CONTROLLER_clear_error();
 				break;
 		}
-	}*/
+	}
 
     return 0;
 }
