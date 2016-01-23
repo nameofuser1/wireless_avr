@@ -48,7 +48,7 @@ int main(void)
 
 			case TIMEOUT:
 				printf("Timeout error in state %d\r\n", state);
-				CONTROLLER_clear_error();
+				//CONTROLLER_clear_error();
 				break;
 		}
 	}

@@ -8,12 +8,12 @@
 #ifndef CONTROLLER_H_
 #define CONTROLLER_H_
 
-#define CONTROLLER_ACTION_NUM 	4
+#define CONTROLLER_ACTION_NUM 	6
 #define CONTROLLER_BUF_SIZE 	256
-#define ACTION_TIMEOUT_MS		2000
+#define ACTION_TIMEOUT_MS		250
 
-typedef enum { READY, READ_INIT, READ_CMD, SEND_CMD } ProgramState;
-typedef enum { NONE = 0, INITIAL_ERROR, TIMEOUT} ResultCode;
+typedef enum { READY = 0, READ_INIT, READ_CMD, SEND_CMD, TERMINATE, FAILED } ProgramState;
+typedef enum { NONE = 0, INITIAL_ERROR, TIMEOUT } ResultCode;
 
 void 			CONTROLLER_init(void);
 ResultCode 		CONTROLLER_perform_action(void);

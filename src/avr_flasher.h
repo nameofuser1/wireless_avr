@@ -16,6 +16,7 @@
 #define ACK_PACKET_BYTE 	0xAA
 #define INIT_PACKET_BYTE	0xFF
 #define STOP_PACKET_BYTE	0x01
+#define ERROR_PACKET_BYTE	0xEE
 
 /*
  * APB2 has 36MHz frequency so TIM will have 1ms tick

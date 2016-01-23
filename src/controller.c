@@ -14,6 +14,10 @@ static void CONTROLLER_state_ready(void);
 static void CONTROLLER_state_read_init(void);
 static void CONTROLLER_state_read_cmd(void);
 static void CONTROLLER_state_send_cmd(void);
+static void CONTROLLER_state_terminate(void);
+static void CONTROLLER_state_error(void);
+static inline void send_ack(void);
+static inline void send_error(void);
 static inline void update_write_pointer(void);
 static inline void update_read_pointer(void);
 
@@ -46,6 +50,8 @@ void CONTROLLER_init(void)
 	actions[READ_INIT] = CONTROLLER_state_read_init;
 	actions[READ_CMD] = CONTROLLER_state_read_cmd;
 	actions[SEND_CMD] = CONTROLLER_state_send_cmd;
+	actions[TERMINATE] = CONTROLLER_state_terminate;
+	actions[FAILED] = CONTROLLER_state_error;
 }
 
 ResultCode CONTROLLER_perform_action(void)
@@ -80,9 +86,7 @@ static void CONTROLLER_state_ready(void)
 			if(data_buffer[read_pointer] != INIT_PACKET_BYTE)
 			{
 				error = INITIAL_ERROR;
-				remaining_data = 0;
-				read_pointer = 0;
-				write_pointer = 0;
+				state = FAILED;
 				return;
 			}
 			update_read_pointer();
@@ -90,8 +94,7 @@ static void CONTROLLER_state_ready(void)
 		}
 
 		AVRFlasher_reset_enable();
-		const uint8_t ack[4] = {ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE};
-		USART_SendArray(USART3, ack, 4);
+		send_ack();
 
 		SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 30);
 		SoftwareTimer_start(&soft_timer2, &wait_at_ready_timer);
@@ -128,30 +131,24 @@ static void CONTROLLER_state_read_cmd(void)
 		}
 		else
 		{
+			/*
+			 * 	If at least one byte is not STOP_PACKET_BYTE
+			 *	State will become SEND_CMD
+			 */
+			state = TERMINATE;
+
 			for(uint32_t i = 0; i<4; i++)
 			{
 				if(data_buffer[read_pointer+i] != STOP_PACKET_BYTE)
 				{
-					SoftwareTimer_wait_for(&timeout_timer);	//SHOULD REPLACE WITH TIMER STOP
-					timeout_timer.state = Idle;
+					SoftwareTimer_stop(&soft_timer2, &timeout_timer);
+					//timeout_timer.state = Idle;
 					state = SEND_CMD;
-					return;
+					break;
 				}
 			}
-
-			SoftwareTimer_wait_for(&timeout_timer);
-			timeout_timer.state = Idle;
-			state = READY;
-			read_pointer = 0;
-			write_pointer = 0;
-			remaining_data = 0;
-			AVRFlasher_reset_disable();
-			const uint8_t ack[4] = { ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE };
-			USART_SendArray(USART3, ack, 4);
 		}
 	}
-
-
 }
 
 static void CONTROLLER_state_send_cmd(void)
@@ -179,6 +176,39 @@ static void CONTROLLER_state_send_cmd(void)
 }
 
 
+static void CONTROLLER_state_terminate(void)
+{
+	AVRFlasher_reset_disable();
+
+	read_pointer = 0;
+	write_pointer = 0;
+	remaining_data = 0;
+
+	SoftwareTimer_wait_for(&timeout_timer);
+	timeout_timer.state = Idle;
+
+	send_ack();
+	state = READY;
+}
+
+
+static void CONTROLLER_state_error(void)
+{
+	AVRFlasher_reset_disable();
+
+	read_pointer = 0;
+	write_pointer = 0;
+	remaining_data = 0;
+
+	SoftwareTimer_wait_for(&timeout_timer);
+	timeout_timer.state = Idle;
+
+	error = NONE;
+	send_error();
+	state = READY;
+}
+
+
 void CONTROLLER_clear_error(void)
 {
 	read_pointer = 0;
@@ -191,10 +221,25 @@ void CONTROLLER_clear_error(void)
 }
 
 
+static inline void send_ack(void)
+{
+	const uint8_t ack[4] = {ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE};
+	USART_SendArray(USART3, ack, 4);
+}
+
+
+static inline void send_error(void)
+{
+	const uint8_t err[4] = {ERROR_PACKET_BYTE, ERROR_PACKET_BYTE, ERROR_PACKET_BYTE, ERROR_PACKET_BYTE};
+	USART_SendArray(USART3, err, 4);
+}
+
+
 static inline void update_write_pointer(void)
 {
 	write_pointer = (write_pointer == CONTROLLER_BUF_SIZE-1) ? 0 : write_pointer+1;
 }
+
 
 static inline void update_read_pointer(void)
 {

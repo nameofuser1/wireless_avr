@@ -97,6 +97,33 @@ void SoftwareTimer_start(SoftTimerList *list, SoftwareTimer *timer)
 }
 
 
+void SoftwareTimer_stop(SoftTimerList *list, SoftwareTimer *timer)
+{
+	LinkedListNode *node = list->head;
+	LinkedListNode *prev_node = list->head;
+	while(node != NULL)
+	{
+		if((SoftwareTimer*)node->data == timer)
+		{
+			if(node == list->head)
+			{
+				list->head = node->next;
+			}
+			else
+			{
+				prev_node->next = node->next;
+			}
+			break;
+		}
+		else
+		{
+			prev_node = node;
+		}
+	}
+	timer->state = Idle;
+}
+
+
 /*
  * ********************************************
  * Call it on hardware timer compare interrupt

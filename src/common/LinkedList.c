@@ -69,7 +69,7 @@ void LinkedList_remove(LinkedList *list, LinkedListNode *remove_node)
         {
             if(node == remove_node)
             {
-                if(prev_node == NULL)
+                if(node == list->head)
                 {
                     list->head = node->next;
                     free(node);
