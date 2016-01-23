@@ -27,6 +27,7 @@ static uint32_t remaining_data = 0;
 static uint8_t data_buffer[CONTROLLER_BUF_SIZE];
 
 static SoftwareTimer timeout_timer;
+static SoftwareTimer wait_at_ready_timer;
 
 void CONTROLLER_init(void)
 {
@@ -36,6 +37,7 @@ void CONTROLLER_init(void)
 	SoftwareTimer2_start();
 
 	SoftwareTimer_init(&timeout_timer);
+	SoftwareTimer_init(&wait_at_ready_timer);
 
 	SPI_init(SPI1);
 	SPI_enable(SPI1);
@@ -90,6 +92,11 @@ static void CONTROLLER_state_ready(void)
 		AVRFlasher_reset_enable();
 		const uint8_t ack[4] = {ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE};
 		USART_SendArray(USART3, ack, 4);
+
+		SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 30);
+		SoftwareTimer_start(&soft_timer2, &wait_at_ready_timer);
+		SoftwareTimer_wait_for(&wait_at_ready_timer);
+
 		SoftwareTimer_arm(&timeout_timer, OnePulse, ACTION_TIMEOUT_MS);
 		SoftwareTimer_start(&soft_timer2, &timeout_timer);
 		state = READ_CMD;
@@ -162,8 +169,13 @@ static void CONTROLLER_state_send_cmd(void)
 
 	uint8_t res[4];
 	AVRFlasher_send_command(&command, res);
+
 	USART_SendArray(USART3, res, 4);
 	state = READ_CMD;
+
+	printf("Get avr answer: ");
+	for(int i=0; i<4; i++) printf("0x%02x ", res[i]);
+	printf("\r\n\r\n");
 }
 
 

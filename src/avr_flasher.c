@@ -82,9 +82,10 @@ void AVRFlasher_reset_pulse(uint16_t duration)
  */
 void AVRFlasher_send_command(AvrCommand *command, uint8_t *res)
 {
-	printf("Send command: ");
-	for(int i=0; i<4; i++) printf("0x%02x ", *(((uint8_t*)command)+i));
-	printf("\r\n");
+	//printf("Send command: ");
+	//for(int i=0; i<4; i++) printf("0x%02x ", *(((uint8_t*)command)+i));
+	//printf("\r\n");
+	for(volatile int i=0; i<30000; i++);
 	for(int i=0; i<4; i++)
 	{
 		uint8_t cmd_byte = *(((uint8_t*)command)+i);
@@ -93,31 +94,6 @@ void AVRFlasher_send_command(AvrCommand *command, uint8_t *res)
 		while(!(SPI1->SR & SPI_SR_RXNE));
 		res[i] = SPI1->DR;
 	}
-}
-
-
-void AVRFlasher_prog_enable(void)
-{
-	//AvrCommand command;
-	//command.b1 = AT16_PROG_EN_B1;
-	//command.b2 = AT16_PROG_EN_B2;
-	//command.b3 = AT16_PROG_EN_B3;
-	//command.b4 = AT16_PROG_EN_B4;
-
-	//AVRFlasher_send_command(&command);
-
-	PROG_STATE = STATE_WAIT_DATA;
-	//TIM1_set_duration(WAIT_DATA_DURATION);
-	//TIM1_start();
-	while((!SPI_RX_not_empty(SPI1)) && (PROG_STATE == STATE_WAIT_DATA));
-	//TIM1_stop();
-	while(SPI_RX_not_empty(SPI1))
-	{
-		uint8_t data = SPI_read(SPI1);
-		printf("Read data: 0x%02X\r\n", data);
-	}
-
-	AVRFlasher_reset_disable();
 }
 
 

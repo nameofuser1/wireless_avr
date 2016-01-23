@@ -9,7 +9,6 @@
 #include "soft_timers/SoftwareTimer2.h"
 
 void CLOCK_init(void);
-static bool send_pr(void);
 static void gpio_init(void);
 void gpio_switch(void);
 
@@ -75,32 +74,6 @@ void CLOCK_init(void)
 
     /* PCLK1 = HCLK / 2 = 36MHz */
     RCC->CFGR |= RCC_CFGR_PPRE1_DIV2;
-}
-
-
-static bool send_pr(void)
-{
-	bool res = true;
-	uint8_t answer;
-
-	SPI_write(SPI1, AT16_PROG_EN_B1);
-	while(!(SPI1->SR & SPI_SR_RXNE));
-	answer = SPI1->DR;
-	SPI_write(SPI1, AT16_PROG_EN_B2);
-	while(!(SPI1->SR & SPI_SR_RXNE));
-	answer = SPI1->DR;
-	SPI_write(SPI1, AT16_PROG_EN_B3);
-	while(!(SPI1->SR & SPI_SR_RXNE));
-	answer = SPI1->DR;
-	if(answer != 0x53)
-	{
-		printf("Answer 0x%02x\r\n", answer);
-		res = false;
-	}
-	SPI_write(SPI1, AT16_PROG_EN_B4);
-	while(!(SPI1->SR & SPI_SR_RXNE));
-	answer = SPI1->DR;
-	return res;
 }
 
 
