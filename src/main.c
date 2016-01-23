@@ -4,9 +4,12 @@
 #include "spi.h"
 #include "UART.h"
 #include "controller.h"
+#include "avr_flasher.h"
+#include "soft_timers/SoftwareTimer.h"
+#include "soft_timers/SoftwareTimer2.h"
 
 void CLOCK_init(void);
-//static bool send_pr(void);
+static bool send_pr(void);
 static void gpio_init(void);
 void gpio_switch(void);
 
@@ -27,16 +30,17 @@ int main(void)
 	USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
 
 	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
-/*
-	const uint8_t test[4] = {0x01, 0x05, 0x10, 0x15};
-	while(1)
-	{
-		USART_SendArray(USART3, test, 4);
-		for(volatile uint32_t i = 0; i<10000000;i++);
-		gpio_switch();
-	}
-	*/
-/*
+
+/************************************************/
+
+	SoftwareTimer2_init();
+	SoftwareTimer2_start();
+	SoftwareTimer2_set_duration(1);
+
+	SPI_init(SPI1);
+	SPI_enable(SPI1);
+	printf("Init\r\n");
+
 	SoftwareTimer wait_at_ready_timer;
 	SoftwareTimer_init(&wait_at_ready_timer);
 	uint8_t retries = 0;
@@ -45,6 +49,7 @@ int main(void)
 	while(!success && retries < 30)
 	{
 		AVRFlasher_reset_enable();
+
 		SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 25);
 		SoftwareTimer_start(&soft_timer2, &wait_at_ready_timer);
 		SoftwareTimer_wait_for(&wait_at_ready_timer);
@@ -54,7 +59,7 @@ int main(void)
 		if(!success)
 		{
 			AVRFlasher_reset_disable();
-			SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 2);
+			SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 20);
 			SoftwareTimer_start(&soft_timer2, &wait_at_ready_timer);
 			SoftwareTimer_wait_for(&wait_at_ready_timer);
 		}
@@ -68,12 +73,21 @@ int main(void)
 		command.b2 = AT16_RD_SIG_B2;
 		command.b3 = AT16_RD_PART_FAMILY;
 		command.b4 = AT16_ANSWER_BYTE;
-		volatile uint8_t answer = AVRFlasher_send_command(&command);
-		printf("Read vendor code: 0x%02x\r\n", answer);
+		uint8_t answer[4];
+		AVRFlasher_send_command(&command, answer);
+		printf("Read vendor code: 0x%02x\r\n", answer[3]);
 	}
 
 	AVRFlasher_reset_disable();
-*/
+
+	while(1)
+	{
+
+	}
+
+/*****************************************************************/
+
+	/*
 	printf("Init\r\n");
 	CONTROLLER_init();
 	while(1)
@@ -95,7 +109,7 @@ int main(void)
 				CONTROLLER_clear_error();
 				break;
 		}
-	}
+	}*/
 
     return 0;
 }
@@ -120,7 +134,7 @@ void CLOCK_init(void)
     RCC->CFGR |= RCC_CFGR_PPRE1_DIV2;
 }
 
-/*
+
 static bool send_pr(void)
 {
 	bool res = true;
@@ -137,6 +151,7 @@ static bool send_pr(void)
 	answer = SPI1->DR;
 	if(answer != 0x53)
 	{
+		printf("Answer 0x%02x\r\n", answer);
 		res = false;
 	}
 	SPI_write(SPI1, AT16_PROG_EN_B4);
@@ -144,7 +159,7 @@ static bool send_pr(void)
 	answer = SPI1->DR;
 	return res;
 }
-*/
+
 
 static void gpio_init(void)
 {
@@ -153,7 +168,7 @@ static void gpio_init(void)
 
 	GPIOA->CRL &= ~GPIO_CRL_CNF1;	//Push-pull
 	GPIOA->CRL |= GPIO_CRL_MODE1_1;	//2MHz
-	//GPIOA->BSRR |= GPIO_BSRR_BS3;	//No reset
+	//GPIOA->BSRR |= GPIO_BSRR_BS3;
 
 
 	GPIOA->CRL &= ~GPIO_CRL_CNF3;	//Push-pull

@@ -138,6 +138,7 @@ static void CONTROLLER_state_read_cmd(void)
 			read_pointer = 0;
 			write_pointer = 0;
 			remaining_data = 0;
+			AVRFlasher_reset_disable();
 			const uint8_t ack[4] = { ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE };
 			USART_SendArray(USART3, ack, 4);
 		}
