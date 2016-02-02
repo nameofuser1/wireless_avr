@@ -8,6 +8,7 @@
 #include <periph/usart3.h>
 #include "controller.h"
 #include "avr_flasher.h"
+#include "PacketManager.h"
 #include "soft_timers/SoftwareTimer2.h"
 
 static void CONTROLLER_state_ready(void);
@@ -18,17 +19,12 @@ static void CONTROLLER_state_terminate(void);
 static void CONTROLLER_state_error(void);
 static inline void send_ack(void);
 static inline void send_error(void);
-static inline void update_write_pointer(void);
-static inline void update_read_pointer(void);
 
 static ProgramState state = READY;
 static ResultCode error = NONE;
 static void (*actions[CONTROLLER_ACTION_NUM])(void);
 
-static uint32_t read_pointer = 0;
-static uint32_t write_pointer = 0;
-static uint32_t remaining_data = 0;
-static uint8_t data_buffer[CONTROLLER_BUF_SIZE];
+static Packet cmd_packet;
 
 static SoftwareTimer timeout_timer;
 static SoftwareTimer wait_at_ready_timer;
@@ -56,10 +52,23 @@ void CONTROLLER_init(void)
 
 ResultCode CONTROLLER_perform_action(void)
 {
+	uint32_t available = USART3_available();
+	if(available != 0 && available%4 == 0)
+	{
+		uint8_t buf[available];
+		for(uint32_t i=0; i<available; i++)
+		{
+			buf[i] = USART3_read();
+		}
+
+		PacketManager_parse(buf, available);
+	}
+
 	(*actions[state])();
 
 	return error;
 }
+
 
 ProgramState CONTROLLER_get_state(void)
 {
@@ -69,40 +78,28 @@ ProgramState CONTROLLER_get_state(void)
 
 static void CONTROLLER_state_ready(void)
 {
-	if(remaining_data < 4)
+	if(PacketManager_available())
 	{
-		if(!USART3_is_empty())
+		Packet packet = PacketManager_get_packet();
+		if(packet.type == INIT_PACKET)
 		{
-			data_buffer[write_pointer] = USART3_read();
-			printf("Got byte in state ready: 0x%02x\r\n", data_buffer[write_pointer]);
-			update_write_pointer();
-			remaining_data++;
+			AVRFlasher_reset_enable();
+			send_ack();
+
+			SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 30);
+			SoftwareTimer_start(&soft_timer2, &wait_at_ready_timer);
+			SoftwareTimer_wait_for(&wait_at_ready_timer);
+
+			SoftwareTimer_arm(&timeout_timer, OnePulse, ACTION_TIMEOUT_MS);
+			SoftwareTimer_start(&soft_timer2, &timeout_timer);
+			state = READ_CMD;
 		}
-	}
-	else
-	{
-		for(uint32_t i=0; i<4; i++)
+		else
 		{
-			if(data_buffer[read_pointer] != INIT_PACKET_BYTE)
-			{
-				error = INITIAL_ERROR;
-				state = FAILED;
-				return;
-			}
-			update_read_pointer();
-			remaining_data--;
+			error = INITIAL_ERROR;
+			state = FAILED;
+			/* Send error??? */
 		}
-
-		AVRFlasher_reset_enable();
-		send_ack();
-
-		SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 30);
-		SoftwareTimer_start(&soft_timer2, &wait_at_ready_timer);
-		SoftwareTimer_wait_for(&wait_at_ready_timer);
-
-		SoftwareTimer_arm(&timeout_timer, OnePulse, ACTION_TIMEOUT_MS);
-		SoftwareTimer_start(&soft_timer2, &timeout_timer);
-		state = READ_CMD;
 	}
 }
 
@@ -119,33 +116,23 @@ static void CONTROLLER_state_read_cmd(void)
 	}
 	else
 	{
-		if(remaining_data < 4)
-		{
-			if(!USART3_is_empty())
-			{
-				data_buffer[write_pointer] = USART3_read();
-				printf("Got byte in read cmd: 0x%02x\r\n", data_buffer[write_pointer]);
-				update_write_pointer();
-				remaining_data++;
-			}
-		}
-		else
+		if(PacketManager_available())
 		{
 			/*
 			 * 	If at least one byte is not STOP_PACKET_BYTE
 			 *	State will become SEND_CMD
 			 */
-			state = TERMINATE;
+			Packet packet = PacketManager_get_packet();
 
-			for(uint32_t i = 0; i<4; i++)
+			if(packet.type != STOP_PACKET)
 			{
-				if(data_buffer[read_pointer+i] != STOP_PACKET_BYTE)
-				{
-					SoftwareTimer_stop(&soft_timer2, &timeout_timer);
-					//timeout_timer.state = Idle;
-					state = SEND_CMD;
-					break;
-				}
+				SoftwareTimer_stop(&soft_timer2, &timeout_timer);
+				cmd_packet = packet;
+				state = SEND_CMD;
+			}
+			else
+			{
+				state = TERMINATE;
 			}
 		}
 	}
@@ -154,15 +141,10 @@ static void CONTROLLER_state_read_cmd(void)
 static void CONTROLLER_state_send_cmd(void)
 {
 	AvrCommand command;
-	command.b1 = data_buffer[read_pointer];
-	update_read_pointer();
-	command.b2 = data_buffer[read_pointer];
-	update_read_pointer();
-	command.b3  = data_buffer[read_pointer];
-	update_read_pointer();
-	command.b4 = data_buffer[read_pointer];
-	update_read_pointer();
-	remaining_data -= 4;
+	command.b1 = cmd_packet.data[0];
+	command.b2 = cmd_packet.data[1];
+	command.b3  = cmd_packet.data[2];
+	command.b4 = cmd_packet.data[3];
 
 	uint8_t res[4];
 	AVRFlasher_send_command(&command, res);
@@ -179,15 +161,8 @@ static void CONTROLLER_state_send_cmd(void)
 static void CONTROLLER_state_terminate(void)
 {
 	AVRFlasher_reset_disable();
-
-	read_pointer = 0;
-	write_pointer = 0;
-	remaining_data = 0;
-
-	SoftwareTimer_wait_for(&timeout_timer);
-	timeout_timer.state = Idle;
-
 	send_ack();
+	SoftwareTimer_wait_for(&timeout_timer);
 	state = READY;
 }
 
@@ -195,25 +170,15 @@ static void CONTROLLER_state_terminate(void)
 static void CONTROLLER_state_error(void)
 {
 	AVRFlasher_reset_disable();
-
-	read_pointer = 0;
-	write_pointer = 0;
-	remaining_data = 0;
-
-	SoftwareTimer_wait_for(&timeout_timer);
-	timeout_timer.state = Idle;
-
-	error = NONE;
 	send_error();
+	SoftwareTimer_wait_for(&timeout_timer);
+	error = NONE;
 	state = READY;
 }
 
 
 void CONTROLLER_clear_error(void)
 {
-	read_pointer = 0;
-	write_pointer = 0;
-	remaining_data = 0;
 	SoftwareTimer_wait_for(&timeout_timer);
 	timeout_timer.state = Idle;
 	error = NONE;
@@ -234,15 +199,4 @@ static inline void send_error(void)
 	USART_SendArray(USART3, err, 4);
 }
 
-
-static inline void update_write_pointer(void)
-{
-	write_pointer = (write_pointer == CONTROLLER_BUF_SIZE-1) ? 0 : write_pointer+1;
-}
-
-
-static inline void update_read_pointer(void)
-{
-	read_pointer = (read_pointer == CONTROLLER_BUF_SIZE-1) ? 0 : read_pointer+1;
-}
 
