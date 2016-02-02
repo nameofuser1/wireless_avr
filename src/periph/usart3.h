@@ -13,12 +13,13 @@
 #include "periph/usart.h"
 #include <stdbool.h>
 
-void 	USART1_init(void);
-void 	USART3_init(void);
-uint8_t USART3_read(void);
-bool 	USART3_tx_array(uint8_t *data, uint8_t len);
-bool 	USART3_is_empty(void);
-bool 	USART3_overflow(void);
+void 		USART1_init(void);
+void 		USART3_init(void);
+uint8_t 	USART3_read(void);
+bool 		USART3_tx_array(uint8_t *data, uint8_t len);
+bool 		USART3_is_empty(void);
+uint32_t 	USART3_available(void);
+bool 		USART3_overflow(void);
 
 
 #endif /* PERIPH_USART3_H_ */

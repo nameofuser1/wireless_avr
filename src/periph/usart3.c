@@ -6,6 +6,7 @@
  */
 
 #include <periph/usart3.h>
+#include <stdio.h>
 
 #define USART3_RX_BUF_SIZE 128
 #define USART3_TX_BUF_SIZE 128
@@ -93,6 +94,11 @@ bool USART3_tx_array(uint8_t *data, uint8_t len)
 bool USART3_is_empty(void)
 {
 	return (usart3_rx_counter == 0);
+}
+
+uint32_t USART3_available(void)
+{
+	return usart3_rx_counter;
 }
 
 
