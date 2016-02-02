@@ -5,8 +5,8 @@
  *      Author: kripton
  */
 
-#ifndef SPI_H_
-#define SPI_H_
+#ifndef PERIPH_SPI_H_
+#define PERIPH_SPI_H_
 
 #include "stm32f10x.h"
 #include <stdbool.h>
@@ -21,4 +21,4 @@ bool	SPI_TX_is_empty(SPI_TypeDef *SPI);
 bool	SPI_RX_not_empty(SPI_TypeDef *SPI);
 
 
-#endif /* SPI_H_ */
+#endif /* PERIPH_SPI_H_ */

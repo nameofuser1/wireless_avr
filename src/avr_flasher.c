@@ -5,8 +5,8 @@
  *      Author: kripton
  */
 #include <common/CircularBuffer.h>
+#include <periph/usart.h>
 #include "avr_flasher.h"
-#include "UART.h"
 #include <stdio.h>
 
 static uint8_t PROG_STATE = STATE_READY;

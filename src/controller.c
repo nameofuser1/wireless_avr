@@ -4,10 +4,10 @@
  *  Created on: 22 дек. 2015 г.
  *      Author: kripton
  */
+#include <periph/spi.h>
+#include <periph/usart3.h>
 #include "controller.h"
-#include "UART.h"
 #include "avr_flasher.h"
-#include "spi.h"
 #include "soft_timers/SoftwareTimer2.h"
 
 static void CONTROLLER_state_ready(void);

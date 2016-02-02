@@ -5,7 +5,7 @@
  *      Author: kripton
  */
 
-#include "spi.h"
+#include <periph/spi.h>
 
 
 void SPI_init(SPI_TypeDef *SPI)

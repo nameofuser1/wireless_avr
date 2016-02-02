@@ -1,10 +1,9 @@
 #include "stm32f10x_conf.h"
 #include "stm32f10x.h"
+#include <periph/usart1.h>
+#include <periph/usart3.h>
 #include <stdio.h>
-#include "spi.h"
-#include "UART.h"
 #include "controller.h"
-#include "avr_flasher.h"
 #include "soft_timers/SoftwareTimer.h"
 #include "soft_timers/SoftwareTimer2.h"
 

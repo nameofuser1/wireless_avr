@@ -8,15 +8,17 @@
 #ifndef AVR_FLASHER_H_
 #define AVR_FLASHER_H_
 
+#include <periph/spi.h>
 #include "avr_commands.h"
 #include "stm32f10x.h"
 #include "stm32f10x_usart.h"
-#include "spi.h"
 
 #define ACK_PACKET_BYTE 	0xAA
 #define INIT_PACKET_BYTE	0xFF
 #define STOP_PACKET_BYTE	0x01
 #define ERROR_PACKET_BYTE	0xEE
+#define RESTART_PACKET_BYTE	0xBB
+#define RESET_PACKET_BYTE	0xCC
 
 /*
  * APB2 has 36MHz frequency so TIM will have 1ms tick
