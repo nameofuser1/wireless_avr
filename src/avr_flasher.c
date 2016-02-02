@@ -82,9 +82,9 @@ void AVRFlasher_reset_pulse(uint16_t duration)
  */
 void AVRFlasher_send_command(AvrCommand *command, uint8_t *res)
 {
-	//printf("Send command: ");
-	//for(int i=0; i<4; i++) printf("0x%02x ", *(((uint8_t*)command)+i));
-	//printf("\r\n");
+	printf("Send command: ");
+	for(int i=0; i<4; i++) printf("0x%02x ", *(((uint8_t*)command)+i));
+	printf("\r\n");
 	for(volatile int i=0; i<30000; i++);
 	for(int i=0; i<4; i++)
 	{
@@ -141,9 +141,6 @@ void SPI1_IRQHandler(void)
 		SPI1->SR &= ~SPI_SR_TXE;
 	}
 }
-
-
-
 
 
 void AVRFlasher_reset_enable(void)

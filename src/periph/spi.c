@@ -10,18 +10,19 @@
 
 void SPI_init(SPI_TypeDef *SPI)
 {
+
 	SPI1->CR1 |=  SPI_CR1_BR_1;		//prescaler 8
 	SPI1->CR1 |=  SPI_CR1_SSM;		//Software slave management
 	SPI1->CR1 |=  SPI_CR1_SSI;		//NSS is HIGH
 	SPI1->CR1 |=  SPI_CR2_SSOE;		//NSS is slave select
 	SPI1->CR1 |=  SPI_CR1_MSTR;		//Master
 	SPI1->CR1 &=  ~SPI_CR1_CPOL;	//SCK is low in idle
-	SPI1->CR1 &=  ~SPI_CR1_CPHA;		//Capturing on falling edge
+	SPI1->CR1 &=  ~SPI_CR1_CPHA;	//Capturing on falling edge
 	SPI1->CR1 &=  ~SPI_CR1_DFF;		//8 bit frame format
 	SPI1->CR1 &= ~SPI_CR1_LSBFIRST;	//MSB first
 
 
-	/*
+/*
 		SPI_InitTypeDef spi;
 		spi.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_8;
 		spi.SPI_Mode = SPI_Mode_Master;
@@ -34,7 +35,7 @@ void SPI_init(SPI_TypeDef *SPI)
 		SPI_NSSInternalSoftwareConfig(SPI1, SPI_NSSInternalSoft_Set);
 		SPI_Init(SPI1, &spi);
 		SPI_Cmd(SPI1, ENABLE);
-	*/
+*/
 
 	//SPI->CR2 |= SPI_CR2_TXEIE;		//TX buffer empty interrupt
 	//SPI->CR2 |= SPI_CR2_RXNEIE;		//RX buffer not empty interrupt
