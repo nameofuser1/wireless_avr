@@ -24,8 +24,6 @@ static ProgramState state = READY;
 static ResultCode error = NONE;
 static void (*actions[CONTROLLER_ACTION_NUM])(void);
 
-static Packet cmd_packet;
-
 static SoftwareTimer timeout_timer;
 static SoftwareTimer wait_at_ready_timer;
 
@@ -60,8 +58,32 @@ ResultCode CONTROLLER_perform_action(void)
 		{
 			buf[i] = USART3_read();
 		}
-
 		PacketManager_parse(buf, available);
+	}
+
+	if(PacketManager_available())
+	{
+		PacketType type = PacketManager_next_packet_type();
+
+		switch(type)
+		{
+			case STOP_PACKET:
+				PacketManager_get_packet();
+				state = TERMINATE;
+				break;
+
+			case RESET_PACKET:
+				PacketManager_get_packet();
+				AVRFlasher_reset_disable();
+				SoftwareTimer_delay_ms(&soft_timer2, 5);
+				AVRFlasher_reset_enable();
+				SoftwareTimer_delay_ms(&soft_timer2, 5);
+				send_ack();
+				break;
+
+			default:
+				break;
+		}
 	}
 
 	(*actions[state])();
@@ -103,10 +125,12 @@ static void CONTROLLER_state_ready(void)
 	}
 }
 
+
 static void CONTROLLER_state_read_init(void)
 {
 
 }
+
 
 static void CONTROLLER_state_read_cmd(void)
 {
@@ -118,43 +142,34 @@ static void CONTROLLER_state_read_cmd(void)
 	{
 		if(PacketManager_available())
 		{
-			/*
-			 * 	If at least one byte is not STOP_PACKET_BYTE
-			 *	State will become SEND_CMD
-			 */
-			Packet packet = PacketManager_get_packet();
-
-			if(packet.type != STOP_PACKET)
-			{
-				SoftwareTimer_stop(&soft_timer2, &timeout_timer);
-				cmd_packet = packet;
-				state = SEND_CMD;
-			}
-			else
-			{
-				state = TERMINATE;
-			}
+			SoftwareTimer_stop(&soft_timer2, &timeout_timer);
+			state = SEND_CMD;
 		}
 	}
 }
 
+
 static void CONTROLLER_state_send_cmd(void)
 {
-	AvrCommand command;
-	command.b1 = cmd_packet.data[0];
-	command.b2 = cmd_packet.data[1];
-	command.b3  = cmd_packet.data[2];
-	command.b4 = cmd_packet.data[3];
+	if(PacketManager_available())
+	{
+		Packet cmd_packet = PacketManager_get_packet();
+		AvrCommand command;
+		command.b1 = cmd_packet.data[0];
+		command.b2 = cmd_packet.data[1];
+		command.b3  = cmd_packet.data[2];
+		command.b4 = cmd_packet.data[3];
 
-	uint8_t res[4];
-	AVRFlasher_send_command(&command, res);
+		uint8_t res[4];
+		AVRFlasher_send_command(&command, res);
 
-	USART_SendArray(USART3, res, 4);
-	state = READ_CMD;
+		USART_SendArray(USART3, res, 4);
+		state = READ_CMD;
 
-	printf("Get avr answer: ");
-	for(int i=0; i<4; i++) printf("0x%02x ", res[i]);
-	printf("\r\n\r\n");
+		printf("Get avr answer: ");
+		for(int i=0; i<4; i++) printf("0x%02x ", res[i]);
+		printf("\r\n\r\n");
+	}
 }
 
 
