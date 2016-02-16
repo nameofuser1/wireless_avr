@@ -22,9 +22,10 @@ typedef struct {
 } Packet;
 
 
-bool 	PacketManager_parse(uint8_t *buf, uint8_t len);
-bool 	PacketManager_available(void);
-Packet	PacketManager_get_packet(void);
+bool 		PacketManager_parse(uint8_t *buf, uint8_t len);
+bool 		PacketManager_available(void);
+Packet		PacketManager_get_packet(void);
+PacketType	PacketManager_next_packet_type(void);
 
 
 

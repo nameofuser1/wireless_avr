@@ -120,6 +120,21 @@ Packet PacketManager_get_packet(void)
 
 
 /*
+ * *************************************
+ * Check for available packets first!!!
+ * *************************************
+ */
+PacketType	PacketManager_next_packet_type(void)
+{
+	if(packets_available > 0)
+	{
+		return packets[packets_rd_pointer].type;
+	}
+
+	return 0;
+}
+
+/*
  * *********************************************
  * One of the bits is used for one type
  * CMD bit is not reset so it tells truth only
