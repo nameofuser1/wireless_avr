@@ -85,7 +85,7 @@ void AVRFlasher_send_command(AvrCommand *command, uint8_t *res)
 	printf("Send command: ");
 	for(int i=0; i<4; i++) printf("0x%02x ", *(((uint8_t*)command)+i));
 	printf("\r\n");
-	for(volatile int i=0; i<30000; i++);
+	for(volatile int i=0; i<60000; i++);
 	for(int i=0; i<4; i++)
 	{
 		uint8_t cmd_byte = *(((uint8_t*)command)+i);
