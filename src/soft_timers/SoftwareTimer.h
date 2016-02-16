@@ -41,6 +41,7 @@ void SoftwareTimer_start( SoftTimerList *list, SoftwareTimer *tim);
 void SoftwareTimer_stop(SoftTimerList *list, SoftwareTimer *timer);
 void SoftwareTimer_tick(SoftTimerList *tim_list);
 void SoftwareTimer_wait_for(SoftwareTimer *tim);
+void SoftwareTimer_delay_ms(SoftTimerList *list, uint32_t ms);
 
 
 #endif /* SOFT_TIMERS_SOFTWARETIMER_H_ */

@@ -209,3 +209,12 @@ void SoftwareTimer_wait_for(SoftwareTimer *tim)
 	}
 }
 
+
+void SoftwareTimer_delay_ms(SoftTimerList *list, uint32_t ms)
+{
+	SoftwareTimer tim;
+	SoftwareTimer_init(&tim);
+	SoftwareTimer_arm(&tim, OnePulse, ms);
+	SoftwareTimer_start(list, &tim);
+	SoftwareTimer_wait_for(&tim);
+}
