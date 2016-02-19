@@ -9,7 +9,6 @@
 
 void CLOCK_init(void);
 static void gpio_init(void);
-void gpio_switch(void);
 
 
 int main(void)
@@ -20,10 +19,11 @@ int main(void)
 
 	USART1_init();
 	USART_Cmd(USART1, ENABLE);
+	NVIC_EnableIRQ(USART1_IRQn);
+	USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
 
 	USART3_init();
     USART_Cmd(USART3, ENABLE);
-
 	NVIC_EnableIRQ(USART3_IRQn);
 	USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
 
@@ -47,7 +47,6 @@ int main(void)
 
 			case TIMEOUT:
 				printf("Timeout error in state %d\r\n", state);
-				//CONTROLLER_clear_error();
 				break;
 		}
 	}
@@ -81,14 +80,15 @@ static void gpio_init(void)
 	RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_AFIOEN;
 	RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
 
-	GPIOA->CRL &= ~GPIO_CRL_CNF1;	//Push-pull
-	GPIOA->CRL |= GPIO_CRL_MODE1_1;	//2MHz
+	/* PA3(reset) 2MHz push-pull, high(no reset) */
+	//GPIOA->CRL &= ~GPIO_CRL_CNF3;
+	//GPIOA->CRL |= GPIO_CRL_MODE3_1;
 	//GPIOA->BSRR |= GPIO_BSRR_BS3;
 
-
-	GPIOA->CRL &= ~GPIO_CRL_CNF3;	//Push-pull
-	GPIOA->CRL |= GPIO_CRL_MODE3_1;	//2MHz
-	GPIOA->BSRR |= GPIO_BSRR_BS3;	//No reset
+	/* PA8(reset) 2MHz push-pull, high(no reset)*/
+	GPIOA->CRH &= ~GPIO_CRH_CNF8;
+	GPIOA->CRH |= GPIO_CRH_MODE8_1;
+	GPIOA->BSRR |= GPIO_BSRR_BS8;
 
 	/* SCK alternate push-pull 50MHz */
 	GPIOA->CRL &= ~GPIO_CRL_CNF5;
@@ -104,21 +104,12 @@ static void gpio_init(void)
 	GPIOA->CRL &= ~GPIO_CRL_CNF4;
 	GPIOA->CRL |= GPIO_CRL_CNF4_1;
 	GPIOA->CRL |= GPIO_CRL_MODE4;
-	//should make it as 1?
 
 	/* MISO input floating */
 	GPIOA->CRL &= ~GPIO_CRL_CNF6;
 	GPIOA->CRL &= ~GPIO_CRL_MODE6;
 	GPIOA->CRL |= GPIO_CRL_CNF6_0;
 }
-
-
-void gpio_switch(void)
-{
-	GPIOA->ODR ^= GPIO_ODR_ODR1;
-}
-
-
 
 
 
