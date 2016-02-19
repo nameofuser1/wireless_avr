@@ -8,10 +8,7 @@
 #ifndef AVR_FLASHER_H_
 #define AVR_FLASHER_H_
 
-#include <periph/spi.h>
-#include "avr_commands.h"
 #include "stm32f10x.h"
-#include "stm32f10x_usart.h"
 
 #define ACK_PACKET_BYTE 	0xAA
 #define INIT_PACKET_BYTE	0xFF
@@ -48,12 +45,21 @@
 #define STATE_PROG_FINISHED		0x06
 
 
+typedef struct {
+
+	uint8_t b1;
+	uint8_t b2;
+	uint8_t b3;
+	uint8_t b4;
+
+} AvrCommand;
+
 
 void 		AVRFlasher_init(void);
 void 		AVRFlasher_start(void);
 uint8_t 	AVRFlasher_get_state(void);
 void 		AVRFlasher_reset(uint16_t duration);
-void 	AVRFlasher_send_command(AvrCommand *command, uint8_t *res);
+void 		AVRFlasher_send_command(AvrCommand *command, uint8_t *res);
 void 		AVRFlasher_prog_enable(void);
 
 

@@ -4,15 +4,11 @@
  *  Created on: 24 нояб. 2015 г.
  *      Author: kripton
  */
-#include <common/CircularBuffer.h>
-#include <periph/usart.h>
 #include "avr_flasher.h"
 #include <stdio.h>
+#include <periph/spi.h>
 
 static uint8_t PROG_STATE = STATE_READY;
-static CircularBuffer send_buffer;
-static CircularBuffer recv_buffer;
-
 
 /*
  * **************************************
@@ -22,10 +18,7 @@ static CircularBuffer recv_buffer;
  */
 void AVRFlasher_init(void)
 {
-	CircularBuffer_alloc(&send_buffer, SEND_BUFFER_SIZE);
-	CircularBuffer_alloc(&recv_buffer, RECV_BUFFER_SIZE);
-
-	SPI_init(SPI1);
+	SPI1_init();
 	//TIM1_init(RESET_TIM_PRESCALER);
 }
 
@@ -39,12 +32,9 @@ void AVRFlasher_init(void)
  */
 void AVRFlasher_start(void)
 {
-	SPI_enable(SPI1);
+	SPI1_enable();
 	AVRFlasher_reset_enable();
 	PROG_STATE = STATE_WAIT_AT_READY;
-	//TIM1_set_duration(WAIT_AT_READY_DURATION);
-	//TIM1_start();
-	//AVRFlasher_reset(RESET_DURATION);
 }
 
 
@@ -69,8 +59,6 @@ void AVRFlasher_reset_pulse(uint16_t duration)
 {
 	AVRFlasher_reset_enable();
 	PROG_STATE = STATE_RESET_PULSE;
-	//TIM1_set_duration(RESET_DURATION);
-	//TIM1_start();
 }
 
 
@@ -89,7 +77,7 @@ void AVRFlasher_send_command(AvrCommand *command, uint8_t *res)
 	for(int i=0; i<4; i++)
 	{
 		uint8_t cmd_byte = *(((uint8_t*)command)+i);
-		SPI_write(SPI1, cmd_byte);
+		SPI1_write(cmd_byte);
 
 		while(!(SPI1->SR & SPI_SR_RXNE));
 		res[i] = SPI1->DR;
@@ -123,32 +111,13 @@ void TIM1_UP_IRQHandler(void)
 }
 
 
-void SPI1_IRQHandler(void)
-{
-	if(SPI1->SR & SPI_SR_RXNE)
-	{
-		uint8_t data = SPI_read(SPI1);
-		printf("Get data: 0x%02x\r\n", data);
-		CircularBuffer_put(&recv_buffer, (void*)&data);
-		SPI1->SR &= ~SPI_SR_RXNE;
-	}
-	else if(SPI1->SR & SPI_SR_TXE)
-	{
-		printf("TX buffer is empty\r\n");
-		uint8_t byte = *(uint8_t*)CircularBuffer_get(&send_buffer);
-		SPI1->DR = byte;
-		printf("Send byte 0x%02x\r\n", byte);
-		SPI1->SR &= ~SPI_SR_TXE;
-	}
-}
-
 
 void AVRFlasher_reset_enable(void)
 {
-	GPIOA->BSRR |= GPIO_BSRR_BR3;
+	GPIOA->BSRR |= GPIO_BSRR_BR8;
 }
 
 void AVRFlasher_reset_disable(void)
 {
-	GPIOA->BSRR |= GPIO_BSRR_BS3;
+	GPIOA->BSRR |= GPIO_BSRR_BS8;
 }
