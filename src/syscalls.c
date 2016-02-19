@@ -8,14 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "stm32f10x_usart.h"
-
-void UART_send(uint8_t b)
-{
-	while(!(USART1->SR & USART_SR_TC));
-	USART1->DR = b;
-}
-
+#include "periph/usart3.h"
 
 #undef errno
 extern int errno;
@@ -97,16 +90,8 @@ int _write(int file, char *ptr, int len)
 {
 
 #if 1
-     //user code example
-
-     int i;
      (void)file;
-
-     for(i = 0; i < len; i++)
-     {
-		while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
-		USART_SendData(USART1, *ptr++);
-     }
+     USART3_tx_array((uint8_t*)ptr, len);
 #endif
 
     return len;
