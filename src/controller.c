@@ -5,7 +5,7 @@
  *      Author: kripton
  */
 #include <periph/spi.h>
-#include <periph/usart3.h>
+#include "esp8266.h"
 #include "controller.h"
 #include "avr_flasher.h"
 #include "PacketManager.h"
@@ -17,8 +17,6 @@ static void CONTROLLER_state_read_cmd(void);
 static void CONTROLLER_state_send_cmd(void);
 static void CONTROLLER_state_terminate(void);
 static void CONTROLLER_state_error(void);
-static inline void send_ack(void);
-static inline void send_error(void);
 
 static ProgramState state = READY;
 static ResultCode error = NONE;
@@ -37,8 +35,8 @@ void CONTROLLER_init(void)
 	SoftwareTimer_init(&timeout_timer);
 	SoftwareTimer_init(&wait_at_ready_timer);
 
-	SPI_init(SPI1);
-	SPI_enable(SPI1);
+	SPI1_init();
+	SPI1_enable();
 
 	actions[READY] = CONTROLLER_state_ready;
 	actions[READ_INIT] = CONTROLLER_state_read_init;
@@ -50,13 +48,13 @@ void CONTROLLER_init(void)
 
 ResultCode CONTROLLER_perform_action(void)
 {
-	uint32_t available = USART3_available();
+	uint32_t available = ESP8266_available();
 	if(available != 0 && available%4 == 0)
 	{
 		uint8_t buf[available];
 		for(uint32_t i=0; i<available; i++)
 		{
-			buf[i] = USART3_read();
+			buf[i] = ESP8266_read();
 		}
 		PacketManager_parse(buf, available);
 	}
@@ -78,7 +76,7 @@ ResultCode CONTROLLER_perform_action(void)
 				SoftwareTimer_delay_ms(&soft_timer2, 5);
 				AVRFlasher_reset_enable();
 				SoftwareTimer_delay_ms(&soft_timer2, 5);
-				send_ack();
+				ESP8266_SendAck();
 				break;
 
 			default:
@@ -106,7 +104,7 @@ static void CONTROLLER_state_ready(void)
 		if(packet.type == INIT_PACKET)
 		{
 			AVRFlasher_reset_enable();
-			send_ack();
+			ESP8266_SendAck();
 
 			SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 30);
 			SoftwareTimer_start(&soft_timer2, &wait_at_ready_timer);
@@ -163,7 +161,7 @@ static void CONTROLLER_state_send_cmd(void)
 		uint8_t res[4];
 		AVRFlasher_send_command(&command, res);
 
-		USART_SendArray(USART3, res, 4);
+		ESP8266_SendData(res, 4);
 		state = READ_CMD;
 
 		printf("Get avr answer: ");
@@ -176,7 +174,7 @@ static void CONTROLLER_state_send_cmd(void)
 static void CONTROLLER_state_terminate(void)
 {
 	AVRFlasher_reset_disable();
-	send_ack();
+	ESP8266_SendAck();
 	SoftwareTimer_wait_for(&timeout_timer);
 	state = READY;
 }
@@ -185,7 +183,7 @@ static void CONTROLLER_state_terminate(void)
 static void CONTROLLER_state_error(void)
 {
 	AVRFlasher_reset_disable();
-	send_error();
+	ESP8266_SendError();
 	SoftwareTimer_wait_for(&timeout_timer);
 	error = NONE;
 	state = READY;
@@ -200,18 +198,5 @@ void CONTROLLER_clear_error(void)
 	state = READY;
 }
 
-
-static inline void send_ack(void)
-{
-	const uint8_t ack[4] = {ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE};
-	USART_SendArray(USART3, ack, 4);
-}
-
-
-static inline void send_error(void)
-{
-	const uint8_t err[4] = {ERROR_PACKET_BYTE, ERROR_PACKET_BYTE, ERROR_PACKET_BYTE, ERROR_PACKET_BYTE};
-	USART_SendArray(USART3, err, 4);
-}
 
 
