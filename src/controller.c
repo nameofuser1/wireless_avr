@@ -135,6 +135,7 @@ static void CONTROLLER_state_read_cmd(void)
 	if(timeout_timer.state == Done)
 	{
 		error = TIMEOUT;
+		state = FAILED;
 	}
 	else
 	{
@@ -164,9 +165,9 @@ static void CONTROLLER_state_send_cmd(void)
 		ESP8266_SendData(res, 4);
 		state = READ_CMD;
 
-		printf("Get avr answer: ");
-		for(int i=0; i<4; i++) printf("0x%02x ", res[i]);
-		printf("\r\n\r\n");
+		//printf("Get avr answer: ");
+		//for(int i=0; i<4; i++) printf("0x%02x ", res[i]);
+		//printf("\r\n\r\n");
 	}
 }
 

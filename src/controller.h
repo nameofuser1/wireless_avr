@@ -10,7 +10,7 @@
 
 #define CONTROLLER_ACTION_NUM 	6
 #define CONTROLLER_BUF_SIZE 	256
-#define ACTION_TIMEOUT_MS		250
+#define ACTION_TIMEOUT_MS		500
 
 typedef enum { READY = 0, READ_INIT, READ_CMD, SEND_CMD, TERMINATE, FAILED } ProgramState;
 typedef enum { NONE = 0, INITIAL_ERROR, TIMEOUT } ResultCode;
