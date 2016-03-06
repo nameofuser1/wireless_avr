@@ -19,7 +19,6 @@ static uint8_t PROG_STATE = STATE_READY;
 void AVRFlasher_init(void)
 {
 	SPI1_init();
-	//TIM1_init(RESET_TIM_PRESCALER);
 }
 
 
@@ -70,10 +69,9 @@ void AVRFlasher_reset_pulse(uint16_t duration)
  */
 void AVRFlasher_send_command(AvrCommand *command, uint8_t *res)
 {
-	printf("Send command: ");
-	for(int i=0; i<4; i++) printf("0x%02x ", *(((uint8_t*)command)+i));
-	printf("\r\n");
-	for(volatile int i=0; i<60000; i++);
+	//printf("Send command: ");
+	//for(int i=0; i<4; i++) printf("0x%02x ", *(((uint8_t*)command)+i));
+	//printf("\r\n");
 	for(int i=0; i<4; i++)
 	{
 		uint8_t cmd_byte = *(((uint8_t*)command)+i);
@@ -83,33 +81,6 @@ void AVRFlasher_send_command(AvrCommand *command, uint8_t *res)
 		res[i] = SPI1->DR;
 	}
 }
-
-
-void TIM1_UP_IRQHandler(void)
-{
-	switch(PROG_STATE)
-	{
-		case STATE_RESET_PULSE:
-			printf("STATE_RESET TIM\r\n");
-			GPIOA->BSRR |= GPIO_BSRR_BR3;
-			PROG_STATE = STATE_WAIT_AT_READY;
-			//TIM1_set_duration(WAIT_AT_READY_DURATION);
-			//TIM1_start();
-			break;
-
-		case STATE_WAIT_AT_READY:
-			printf("STATE_WAIT_AT_READY\r\n");
-			PROG_STATE = STATE_READY;
-			break;
-
-		case STATE_WAIT_DATA:
-			printf("STATE MISSING DATA\r\n");
-			PROG_STATE = STATE_MISSING_DATA;
-			break;
-	}
-	TIM1->SR &= ~TIM_SR_UIF;
-}
-
 
 
 void AVRFlasher_reset_enable(void)
