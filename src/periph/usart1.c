@@ -34,34 +34,34 @@ static bool overflow = false;
 void USART1_init(void)
 {
     /* PA9 TX push-pull output, 10MHz */
-    //GPIOA->CRH &= ~GPIO_CRH_CNF9;
-    //GPIOA->CRH |= GPIO_CRH_CNF9_1;  //Alternative function, push-pull as CNF9_0 = 0
-    //GPIOA->CRH |= GPIO_CRH_MODE9_0; //10 MHz
+    GPIOA->CRH &= ~GPIO_CRH_CNF9;
+    GPIOA->CRH |= GPIO_CRH_CNF9_1;  //Alternative function, push-pull as CNF9_0 = 0
+    GPIOA->CRH |= GPIO_CRH_MODE9_0; //10 MHz
 
     /* PA10 RX HI-Z input */
-    //GPIOA->CRH &= ~GPIO_CRH_CNF10;
-    //GPIOA->CRH |= GPIO_CRH_CNF10_0; //HI_Z
-    //GPIOA->CRH &= ~GPIO_CRH_MODE10; //Clear MODE <=> INPUT
+    GPIOA->CRH &= ~GPIO_CRH_CNF10;
+    GPIOA->CRH |= GPIO_CRH_CNF10_0; //HI_Z
+    GPIOA->CRH &= ~GPIO_CRH_MODE10; //Clear MODE <=> INPUT
 
     /* Remap USART1 from PA9/PA10 to PB6/PB7 */
-    AFIO->MAPR |= AFIO_MAPR_USART1_REMAP;
+    //AFIO->MAPR |= AFIO_MAPR_USART1_REMAP;
 
     /* PB6 TX alternative push-pull output 10MHz */
-    GPIOB->CRL &= ~GPIO_CRL_CNF6;
-    GPIOB->CRL |= GPIO_CRL_CNF6_1;
-    GPIOB->CRL |= GPIO_CRL_MODE6_0;
+    //GPIOB->CRL &= ~GPIO_CRL_CNF6;
+    //GPIOB->CRL |= GPIO_CRL_CNF6_1;
+    //GPIOB->CRL |= GPIO_CRL_MODE6_0;
 
     /* PB7 RX HI-Z input */
-    GPIOB->CRL &= ~GPIO_CRL_CNF7;
-    GPIOB->CRL |= GPIO_CRL_CNF7_0;
-    GPIOB->CRL &= ~GPIO_CRL_MODE7;
+    //GPIOB->CRL &= ~GPIO_CRL_CNF7;
+    //GPIOB->CRL |= GPIO_CRL_CNF7_0;
+    //GPIOB->CRL &= ~GPIO_CRL_MODE7;
 
     /* Enable RCC USART1 */
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
 
     USART_InitTypeDef usart;
     USART_StructInit(&usart);
-	usart.USART_BaudRate = 19200;
+	usart.USART_BaudRate = 115200;
 	usart.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
 	usart.USART_Parity = USART_Parity_No;
 	usart.USART_WordLength = USART_WordLength_8b;
@@ -129,7 +129,7 @@ void USART1_IRQHandler(void)
 	{
 		if((USART1->SR & (USART_FLAG_NE | USART_FLAG_ORE | USART_FLAG_FE | USART_FLAG_PE)) == 0)
 		{
-			uint8_t data = (uint8_t)(USART_ReceiveData(USART3) & 0xFF);
+			uint8_t data = (uint8_t)(USART_ReceiveData(USART1) & 0xFF);
 			usart1_rx_buffer[usart1_rx_wr_pointer] = data;
 			usart1_rx_wr_pointer = (usart1_rx_wr_pointer == USART1_RX_BUF_SIZE-1) ? 0 : usart1_rx_wr_pointer+1;
 
