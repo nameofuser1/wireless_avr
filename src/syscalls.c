@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "periph/usart.h"
 #include "periph/usart1.h"
 
 #undef errno
@@ -91,7 +92,7 @@ int _write(int file, char *ptr, int len)
 
 #if 1
      (void)file;
-     USART1_tx_array((uint8_t*)ptr, len);
+     USART_SendArray(USART1, (uint8_t*)ptr, (uint32_t)len);
 #endif
 
     return len;

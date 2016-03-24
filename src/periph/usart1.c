@@ -8,8 +8,8 @@
 #include <periph/usart1.h>
 
 
-#define USART1_RX_BUF_SIZE 256
-#define USART1_TX_BUF_SIZE 256
+#define USART1_RX_BUF_SIZE 128
+#define USART1_TX_BUF_SIZE 128
 
 /*
  * RX buffer and pointers

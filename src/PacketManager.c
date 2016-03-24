@@ -6,14 +6,23 @@
  */
 
 #include "PacketManager.h"
-#include "avr_flasher.h"
+#include "esp8266.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <inttypes.h>
+
+#define SIZE_FIELD_SIZE		2
+#define TYPE_FIELD_SIZE		1
+#define PACKET_HEADER_SIZE	(SIZE_FIELD_SIZE + TYPE_FIELD_SIZE)
+
+#define MAX_PACKET_LENGTH	300
+
+#define ERROR_PACKET_LEN	3
+#define ERROR_LEN			1
 
 #define PACKETS_BUF_SIZE 	10
-#define PACKET_BYTES_NUM	6
-#define PACKET_TYPE_DEFAULT	0x3F	//first 6 bits
-#define PACKET_LENGTH		4
-
-#define NULL (void*)0
+#define PARSING_BUF_SIZE	512
 
 
 static Packet 	packets[PACKETS_BUF_SIZE];
@@ -21,7 +30,10 @@ static uint8_t 	packets_available = 0;
 static uint8_t 	packets_wr_pointer = 0;
 static uint8_t	packets_rd_pointer = 0;
 
-static PacketType get_type(uint8_t _type);
+static uint8_t 		parsing_buf[PARSING_BUF_SIZE];
+static PacketType	parsing_packet_type = NONE_PACKET;
+static uint16_t 	parsing_packet_length = 0;
+static uint16_t 		parsing_len = 0;
 
 
 /*
@@ -31,56 +43,126 @@ static PacketType get_type(uint8_t _type);
  * Be sure that array length is packet size scalable
  * ****************************************************
  */
-bool PacketManager_parse(uint8_t *data, uint8_t len)
+bool PacketManager_parse(void)
 {
-	if(len%PACKET_LENGTH != 0)
+	if(ESP8266_available() > 0)
 	{
-		return false;
-	}
-
-	uint8_t type = PACKET_TYPE_DEFAULT;
-	uint32_t packets_num = len/PACKET_LENGTH;
-	for(uint32_t i=0; i<packets_num; i++)
-	{
-		uint32_t index = i*PACKET_LENGTH;
-		Packet packet;
-		for(uint32_t j=0; j<PACKET_LENGTH; j++)
+		if(parsing_packet_length == 0)
 		{
-			packet.data[index+j] = data[index+j];
-
-			if(data[i] != INIT_PACKET_BYTE)
+			if(ESP8266_available() >= 2)
 			{
-				type &= ~(1 << INIT_PACKET);
+				parsing_packet_length |= (ESP8266_read() << 8) & 0xFF00;
+				parsing_packet_length |= (ESP8266_read() & 0xFF);
+				parsing_len += 2;
+				//printf("Got packet length: %" PRIu16 "\r\n", parsing_packet_length);
 			}
-
-			if(data[i] != STOP_PACKET_BYTE)
+			else
 			{
-				type &= ~(1 << STOP_PACKET);
-			}
-
-			if(data[i] != RESTART_PACKET_BYTE)
-			{
-				type &= ~(1 << RESTART_PACKET);
-			}
-
-			if(data[i] != RESET_PACKET_BYTE)
-			{
-				type &= ~(1 << RESET_PACKET);
-			}
-
-			if(data[i] != ERROR_PACKET_BYTE)
-			{
-				type &= ~(1 << ERROR_PACKET);
+				return true;
 			}
 		}
-		packet.type = get_type(type);
 
-		packets[packets_wr_pointer] = packet;
-		packets_wr_pointer = (packets_wr_pointer == PACKETS_BUF_SIZE-1) ? 0 : packets_wr_pointer+1;
-
-		if(++packets_available == PACKETS_BUF_SIZE)
+		if(parsing_packet_type == NONE_PACKET)
 		{
-			return false;
+			if(ESP8266_available() > 0)
+			{
+				//printf("Parsing packet type is none and esp available %" PRIu32 "\r\n", ESP8266_available());
+				uint8_t type_byte = ESP8266_read();
+
+				parsing_len++;
+
+				switch(type_byte)
+				{
+					case PROG_INIT_BYTE:
+						printf("Got prog init byte\r\n");
+						parsing_packet_type = PROG_INIT_PACKET;
+						break;
+
+					case AVR_PROG_INIT_BYTE:
+						printf("Got avr prog init byte\r\n");
+						parsing_packet_type = AVR_PROG_INIT_PACKET;
+						break;
+
+					case STOP_PACKET_BYTE:
+						printf("Got stop packet byte\r\n");
+						parsing_packet_type = STOP_PACKET;
+						break;
+
+					case CMD_PACKET_BYTE:
+						printf("Got cmd packet byte\r\n");
+						parsing_packet_type = CMD_PACKET;
+						break;
+
+					case RESET_PACKET_BYTE:
+						printf("Got reset packet byte\r\n");
+						parsing_packet_type = RESET_PACKET;
+						break;
+
+					case PROG_MEM_PACKET_BYTE:
+						printf("Got prog mem packet byte\r\n");
+						parsing_packet_type = PROG_MEM_PACKET;
+						break;
+
+					case READ_MEM_PACKET_BYTE:
+						printf("Got read mem packet byte\r\n");
+						parsing_packet_type = READ_MEM_PACKET;
+						break;
+
+					case USART_INIT_PACKET_BYTE:
+						printf("Got usart init packet byte\r\n");
+						parsing_packet_type = USART_INIT_PACKET;
+						break;
+
+					case PGM_ENABLE_PACKET_BYTE:
+						printf("Got pgm enable packet byte\r\n");
+						parsing_packet_type = PGM_ENABLE_PACKET;
+						break;
+
+					default:
+						printf("Got wrong packet byte\r\n");
+						return false;
+				}
+			}
+			else
+			{
+				return true;
+			}
+		}
+
+
+		while((ESP8266_available() > 0) && (parsing_len < parsing_packet_length))
+		{
+			//printf("Available bytes is %" PRIu32 "\r\n", ESP8266_available());
+			parsing_buf[parsing_len++ - PACKET_HEADER_SIZE] = ESP8266_read();
+			//printf("%c", parsing_buf[parsing_len-1]);
+		}
+
+		//printf("Got bytes: %" PRIu8 ". Have to got: ")
+		if(parsing_len == parsing_packet_length)
+		{
+			if(packets_available+1 > PACKETS_BUF_SIZE)
+			{
+				return false;
+			}
+
+			uint8_t *packet_data = malloc(sizeof(uint8_t)*(parsing_packet_length - PACKET_HEADER_SIZE));
+			memcpy(packet_data, parsing_buf, parsing_packet_length - PACKET_HEADER_SIZE);
+
+			Packet packet = {
+					.type = parsing_packet_type,
+					.data_length = parsing_packet_length - PACKET_HEADER_SIZE,
+					.data = packet_data
+			};
+
+			packets[packets_wr_pointer] = packet;
+			packets_wr_pointer = (packets_wr_pointer == PACKETS_BUF_SIZE-1) ? 0 : packets_wr_pointer+1;
+			++packets_available;
+			//packets_available++;
+
+			parsing_packet_length = 0;
+			parsing_len = 0;
+			parsing_packet_type = NONE_PACKET;
+			printf("New packet ready\r\n");
 		}
 	}
 
@@ -90,14 +172,7 @@ bool PacketManager_parse(uint8_t *data, uint8_t len)
 
 bool PacketManager_available(void)
 {
-	if(packets_available > 0)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+	return (packets_available > 0);
 }
 
 /*
@@ -134,41 +209,91 @@ PacketType	PacketManager_next_packet_type(void)
 	return 0;
 }
 
+
 /*
- * *********************************************
- * One of the bits is used for one type
- * CMD bit is not reset so it tells truth only
- * when other bits are set to 0.
- * *********************************************
+ * ***********************************
+ * Release data array
+ * ***********************************
  */
-static PacketType get_type(uint8_t _type)
+void PacketManager_free(Packet packet)
 {
-	PacketType type;
+	if(packet.type != ACK_PACKET)
+	{
+		free(packet.data);
+	}
+}
 
-	if((_type & ~(1<<CMD_PACKET)) == 0)
+
+/*
+ * ***************************************
+ * Reset all pointers and counter
+ * ***************************************
+ */
+void PacketManager_clear(void)
+{
+	packets_available = 0;
+	packets_wr_pointer = 0;
+	packets_rd_pointer = 0;
+}
+
+
+/*
+ * *************************************
+ * Creates packet to send
+ * *************************************
+ */
+Packet	PacketManager_create_packet(uint8_t *data, uint8_t data_len, PacketType type)
+{
+	Packet packet;
+	packet.data_length = data_len + PACKET_HEADER_SIZE;
+
+	if(packet.data_length > MAX_PACKET_LENGTH)
 	{
-		type = CMD_PACKET;
-	}
-	else if(_type & (1<<INIT_PACKET))
-	{
-		type = INIT_PACKET;
-	}
-	else if(_type & (1<<STOP_PACKET))
-	{
-		type = STOP_PACKET;
-	}
-	else if(_type & (1<<RESTART_PACKET))
-	{
-		type = RESTART_PACKET;
-	}
-	else if(_type & (1<<RESET_PACKET))
-	{
-		type = RESET_PACKET;
-	}
-	else if(_type & (1<<ERROR_PACKET))
-	{
-		type = ERROR_PACKET;
+		packet.type = NONE_PACKET;
+		printf("Wrong packet length\r\n");
+		return packet;
 	}
 
-	return type;
+	packet.data = (uint8_t*)malloc(sizeof(uint8_t) * (packet.data_length));
+	packet.data[0] = (packet.data_length >> 8) & 0xFF;
+	packet.data[1] = (packet.data_length & 0xFF);
+
+	switch(type)
+	{
+		case CMD_PACKET:
+			packet.type = CMD_PACKET;
+			packet.data[2] = CMD_PACKET_BYTE;
+			break;
+
+		case ERROR_PACKET:
+			packet.type = ERROR_PACKET;
+			packet.data[2] = ERROR_PACKET_BYTE;
+			break;
+
+		case USART_PACKET:
+			packet.type = USART_PACKET;
+			packet.data[2] = USART_PACKET_BYTE;
+			break;
+
+		case ACK_PACKET:
+			packet.type = ACK_PACKET;
+			packet.data[2] = ACK_PACKET_BYTE;
+			break;
+
+		case MEMORY_PACKET:
+			packet.type = MEMORY_PACKET;
+			packet.data[2] = MEMORY_PACKET_BYTE;
+			break;
+
+		default:
+			packet.type = NONE_PACKET;
+			break;
+	}
+
+	if(data_len != 0)
+	{
+		memcpy((packet.data + PACKET_HEADER_SIZE), data, data_len*sizeof(uint8_t));
+	}
+
+	return packet;
 }

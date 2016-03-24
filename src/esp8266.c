@@ -5,32 +5,53 @@
  *      Author: kripton
  */
 #include "esp8266.h"
-#include "periph/usart.h"
+#include <stddef.h>
 #include "periph/usart3.h"
-#include "avr_flasher.h"
+#include "PacketManager.h"
+#include <stdio.h>
+#include "periph/usart.h"
 
-#define ESP_USART USART3
 
-bool ESP8266_SendData(uint8_t *data, uint8_t len)
+bool ESP8266_SendPacket(Packet packet)
 {
-	USART3_tx_array(data, len);
-	return true;
+	if(packet.type != NONE_PACKET)
+	{
+		USART3_tx_array(packet.data, packet.data_length);
+		return true;
+	}
+
+	return false;
 }
 
 
 bool ESP8266_SendAck(void)
 {
-	uint8_t ack[4] = {ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE, ACK_PACKET_BYTE};
-	USART3_tx_array(ack, 4);
-	return true;
+	Packet ack_packet = PacketManager_create_packet(NULL, 0, ACK_PACKET);
+
+	printf("Sending ack\r\n");
+	for(uint32_t i=0; i<ack_packet.data_length; i++)
+	{
+		printf("0x%02x ", ack_packet.data[i]);
+	}
+	printf("\r\n");
+
+	bool res = ESP8266_SendPacket(ack_packet);
+
+	PacketManager_free(ack_packet);
+
+	return res;
 }
 
 
-bool ESP8266_SendError(void)
+bool ESP8266_SendError(uint8_t error)
 {
-	uint8_t err[4] = {ERROR_PACKET_BYTE, ERROR_PACKET_BYTE, ERROR_PACKET_BYTE, ERROR_PACKET_BYTE};
-	USART3_tx_array(err, 4);
-	return true;
+	uint8_t err[1] = {error};
+	Packet err_packet = PacketManager_create_packet(err, 1, ERROR_PACKET);
+	bool res = ESP8266_SendPacket(err_packet);
+
+	PacketManager_free(err_packet);
+
+	return res;
 }
 
 

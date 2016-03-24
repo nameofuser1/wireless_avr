@@ -42,11 +42,14 @@ int main(void)
 
 			case INITIAL_ERROR:
 				printf("Initial error in state %d\r\n", state);
-				CONTROLLER_clear_error();
 				break;
 
 			case TIMEOUT:
 				printf("Timeout error in state %d\r\n", state);
+				break;
+
+			case PROG_TYPE_ERROR:
+				printf("Prog type error in state %d\r\n", state);
 				break;
 		}
 	}

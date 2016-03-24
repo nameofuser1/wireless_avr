@@ -4,7 +4,6 @@
  *  Created on: 22 дек. 2015 г.
  *      Author: kripton
  */
-#include <periph/spi.h>
 #include "esp8266.h"
 #include "controller.h"
 #include "avr_flasher.h"
@@ -12,11 +11,16 @@
 #include "soft_timers/SoftwareTimer2.h"
 
 static void CONTROLLER_state_ready(void);
-static void CONTROLLER_state_read_init(void);
+static void CONTROLLER_state_read_prog_init(void);
 static void CONTROLLER_state_read_cmd(void);
 static void CONTROLLER_state_send_cmd(void);
+static void CONTROLLER_state_prog_mem(void);
+static void CONTROLLER_state_read_mem(void);
 static void CONTROLLER_state_terminate(void);
-static void CONTROLLER_state_error(void);
+static void CONTROLLER_state_failed(void);
+
+static	ProgrammerType CONTROLLER_get_prog_type(uint8_t byte);
+static 	ProgrammerType programmer_type = PROG_NONE;
 
 static ProgramState state = READY;
 static ResultCode error = NONE;
@@ -35,47 +39,48 @@ void CONTROLLER_init(void)
 	SoftwareTimer_init(&timeout_timer);
 	SoftwareTimer_init(&wait_at_ready_timer);
 
-	SPI1_init();
-	SPI1_enable();
-
 	actions[READY] = CONTROLLER_state_ready;
-	actions[READ_INIT] = CONTROLLER_state_read_init;
+	actions[READ_PROG_INIT] = CONTROLLER_state_read_prog_init;
 	actions[READ_CMD] = CONTROLLER_state_read_cmd;
 	actions[SEND_CMD] = CONTROLLER_state_send_cmd;
+	actions[PROG_MEM] = CONTROLLER_state_prog_mem;
+	actions[READ_MEM] = CONTROLLER_state_read_mem;
 	actions[TERMINATE] = CONTROLLER_state_terminate;
-	actions[FAILED] = CONTROLLER_state_error;
+	actions[FAILED] = CONTROLLER_state_failed;
 }
 
 ResultCode CONTROLLER_perform_action(void)
 {
-	uint32_t available = ESP8266_available();
-	if(available != 0 && available%4 == 0)
-	{
-		uint8_t buf[available];
-		for(uint32_t i=0; i<available; i++)
-		{
-			buf[i] = ESP8266_read();
-		}
-		PacketManager_parse(buf, available);
-	}
+	//printf("Call packet manager parse()\r\n");
+	PacketManager_parse();
+	//printf("Packet manager end parsing\r\n");
 
 	if(PacketManager_available())
 	{
+		printf("Packet manager available\r\n");
 		PacketType type = PacketManager_next_packet_type();
 
 		switch(type)
 		{
 			case STOP_PACKET:
+				printf("Got stop packet\r\n");
 				PacketManager_get_packet();
 				state = TERMINATE;
 				break;
 
 			case RESET_PACKET:
-				PacketManager_get_packet();
-				AVRFlasher_reset_disable();
-				SoftwareTimer_delay_ms(&soft_timer2, 5);
-				AVRFlasher_reset_enable();
-				SoftwareTimer_delay_ms(&soft_timer2, 5);
+				if(true){};
+
+				Packet reset_packet = reset_packet = PacketManager_get_packet();
+				if(reset_packet.data[0] == 1)
+				{
+					AVRFlasher_reset_enable();
+				}
+				else
+				{
+					AVRFlasher_reset_disable();
+				}
+
 				ESP8266_SendAck();
 				break;
 
@@ -95,85 +100,206 @@ ProgramState CONTROLLER_get_state(void)
 	return state;
 }
 
-
+/*
+ * **************************************************
+ * Program is in this state when doing nothing
+ * **************************************************
+ */
 static void CONTROLLER_state_ready(void)
 {
 	if(PacketManager_available())
 	{
+		printf("State ready. Packet manager available\r\n");
 		Packet packet = PacketManager_get_packet();
-		if(packet.type == INIT_PACKET)
+		if(packet.type == PROG_INIT_PACKET)
 		{
-			AVRFlasher_reset_enable();
-			ESP8266_SendAck();
+			printf("State ready. Got prog init packet\r\n");
+			if(!ESP8266_SendAck())
+			{
+				printf("Failed to send ack\r\n");
+			}
 
-			SoftwareTimer_arm(&wait_at_ready_timer, OnePulse, 30);
-			SoftwareTimer_start(&soft_timer2, &wait_at_ready_timer);
-			SoftwareTimer_wait_for(&wait_at_ready_timer);
+			programmer_type = CONTROLLER_get_prog_type(packet.data[0]);
+			state = READ_PROG_INIT;
+		}
+		else
+		{
+			printf("State ready. Error\r\n");
+			error = INITIAL_ERROR;
+			state = FAILED;
+		}
 
-			SoftwareTimer_arm(&timeout_timer, OnePulse, ACTION_TIMEOUT_MS);
-			SoftwareTimer_start(&soft_timer2, &timeout_timer);
+		PacketManager_free(packet);
+	}
+}
+
+
+/*
+ * *************************************************
+ * After got PROG_INIT we should initialize
+ * corresponding programmer
+ * *************************************************
+ */
+static void CONTROLLER_state_read_prog_init(void)
+{
+	if(PacketManager_available())
+	{
+		printf("State read prog init. PacketManager available.\r\n");
+		Packet mcu_packet = PacketManager_get_packet();
+
+		if(programmer_type == PROG_AVR)
+		{
+			printf("Getting mcu info in state read prog init\r\n");
+			AvrMcuData mcu_info = AVRFlasher_get_mcu_info(mcu_packet);
+			AVRFlasher_init(mcu_info);
+
+			Packet en_packet = AVRFlasher_pgm_enable();
+			ESP8266_SendPacket(en_packet);
+
+			PacketManager_free(en_packet);
 			state = READ_CMD;
 		}
 		else
 		{
-			error = INITIAL_ERROR;
+			error = PROG_TYPE_ERROR;
 			state = FAILED;
-			/* Send error??? */
 		}
+
+		PacketManager_free(mcu_packet);
 	}
 }
 
-
-static void CONTROLLER_state_read_init(void)
-{
-
-}
-
-
+/*
+ * **************************************************
+ * Reads command packet and jumps into corresponding
+ * state
+ * **************************************************
+ */
 static void CONTROLLER_state_read_cmd(void)
-{
-	if(timeout_timer.state == Done)
-	{
-		error = TIMEOUT;
-		state = FAILED;
-	}
-	else
-	{
-		if(PacketManager_available())
-		{
-			SoftwareTimer_stop(&soft_timer2, &timeout_timer);
-			state = SEND_CMD;
-		}
-	}
-}
-
-
-static void CONTROLLER_state_send_cmd(void)
 {
 	if(PacketManager_available())
 	{
-		Packet cmd_packet = PacketManager_get_packet();
-		AvrCommand command;
-		command.b1 = cmd_packet.data[0];
-		command.b2 = cmd_packet.data[1];
-		command.b3  = cmd_packet.data[2];
-		command.b4 = cmd_packet.data[3];
-
-		uint8_t res[4];
-		AVRFlasher_send_command(&command, res);
-
-		ESP8266_SendData(res, 4);
-		state = READ_CMD;
-
-		//printf("Get avr answer: ");
-		//for(int i=0; i<4; i++) printf("0x%02x ", res[i]);
-		//printf("\r\n\r\n");
+		if(PacketManager_next_packet_type() == PROG_MEM_PACKET)
+		{
+			printf("Got memory programming command\r\n");
+			state = PROG_MEM;
+		}
+		else if(PacketManager_next_packet_type() == CMD_PACKET)
+		{
+			printf("Got command packet\r\n");
+			state = SEND_CMD;
+		}
+		else if(PacketManager_next_packet_type() == READ_MEM_PACKET)
+		{
+			printf("Got read memory packet\r\n");
+			state = READ_MEM;
+		}
+		else
+		{
+			state = FAILED;
+		}
 	}
 }
 
 
+/*
+ * ****************************************
+ * Loads command into programmer
+ * ****************************************
+ */
+static void CONTROLLER_state_send_cmd(void)
+{
+
+	Packet cmd_packet = PacketManager_get_packet();
+
+	if(programmer_type == PROG_AVR)
+	{
+		uint8_t res[AVR_CMD_SIZE];
+		if(AVRFlasher_send_command(cmd_packet.data, cmd_packet.data_length, res))
+		{
+			Packet result_packet = PacketManager_create_packet(res, AVR_CMD_SIZE, CMD_PACKET);
+			ESP8266_SendPacket(result_packet);
+
+			PacketManager_free(result_packet);
+		}
+		else
+		{
+			state = FAILED;
+		}
+	}
+
+	if(state != FAILED)
+	{
+		state = READ_CMD;
+	}
+
+	PacketManager_free(cmd_packet);
+	//printf("Get avr answer: ");
+	//for(int i=0; i<4; i++) printf("0x%02x ", res[i]);
+	//printf("\r\n\r\n");
+}
+
+
+/*
+ * *******************************************************
+ * Perfom memory programming operation
+ * *******************************************************
+ */
+static void CONTROLLER_state_prog_mem(void)
+{
+	Packet memory_packet = PacketManager_get_packet();
+
+	if(programmer_type == PROG_AVR)
+	{
+		AvrProgMemData mem_data = AVRFlasher_get_prog_mem_data(memory_packet);
+		if(AVRFlasher_prog_memory(mem_data))
+		{
+			ESP8266_SendAck();
+		}
+		else
+		{
+			state = FAILED;
+		}
+	}
+
+	PacketManager_free(memory_packet);
+
+	if(state != FAILED)
+	{
+		state = READ_CMD;
+	}
+}
+
+
+/*
+ * *******************************************
+ * 	Reads memory and sends result back
+ * *******************************************
+ */
+static void CONTROLLER_state_read_mem(void)
+{
+	Packet read_mem_params = PacketManager_get_packet();
+
+	if(programmer_type == PROG_AVR)
+	{
+		AvrReadMemData mem_data = AVRFlasher_get_read_mem_data(read_mem_params);
+		Packet memory_packet = AVRFlasher_read_mem(mem_data);
+		ESP8266_SendPacket(memory_packet);
+
+		PacketManager_free(memory_packet);
+	}
+}
+
+
+/*
+ * ***********************************************
+ * Stop working
+ * Maybe go in sleep in future
+ * ***********************************************
+ */
 static void CONTROLLER_state_terminate(void)
 {
+	AVRFlasher_stop();
 	AVRFlasher_reset_disable();
 	ESP8266_SendAck();
 	SoftwareTimer_wait_for(&timeout_timer);
@@ -181,23 +307,38 @@ static void CONTROLLER_state_terminate(void)
 }
 
 
-static void CONTROLLER_state_error(void)
+/*
+ * *********************************************
+ * Error routine
+ * *********************************************
+ */
+static void CONTROLLER_state_failed(void)
 {
-	AVRFlasher_reset_disable();
-	ESP8266_SendError();
+	//AVRFlasher_stop();
+	//AVRFlasher_reset_disable();
+	ESP8266_SendError(error);
 	SoftwareTimer_wait_for(&timeout_timer);
 	error = NONE;
-	state = READY;
+	state = READ_CMD;
 }
 
 
-void CONTROLLER_clear_error(void)
+ProgrammerType CONTROLLER_get_prog_type(uint8_t byte)
 {
-	SoftwareTimer_wait_for(&timeout_timer);
-	timeout_timer.state = Idle;
-	error = NONE;
-	state = READY;
-}
+	switch(byte)
+	{
+		case AVR_PROGRAMMER_BYTE:
+			return PROG_AVR;
 
+		case ARDUINO_PROGRAMMER_BYTE:
+			return PROG_ARDUINO;
+
+		case STM_PROGRAMMER_BYTE:
+			return PROG_STM;
+
+		default:
+			return PROG_NONE;
+	}
+}
 
 

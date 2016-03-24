@@ -9,61 +9,83 @@
 #define AVR_FLASHER_H_
 
 #include "stm32f10x.h"
+#include <stdbool.h>
+#include "PacketManager.h"
 
-#define ACK_PACKET_BYTE 	0xAA
-#define INIT_PACKET_BYTE	0xFF
-#define STOP_PACKET_BYTE	0x01
-#define ERROR_PACKET_BYTE	0xEE
-#define RESTART_PACKET_BYTE	0xBB
-#define RESET_PACKET_BYTE	0xCC
+#define AVR_CMD_SIZE 	4
+#define AVR_WORD_SIZE	2
 
-/*
- * APB2 has 36MHz frequency so TIM will have 1ms tick
- * Reset duration is 25ms according to AT16 datasheet(at least 20 ms)
- */
-#define RESET_TIM_PRESCALER		36000-1
-#define RESET_DURATION			10
-#define WAIT_DATA_DURATION		5
-#define WAIT_AT_READY_DURATION  25
-
-/*
- *
- */
-#define SEND_BUFFER_SIZE		128
-#define RECV_BUFFER_SIZE		128
-
-
-/*
- * Avr flasher states for interrupts
- */
-#define STATE_READY				0x00
-#define STATE_RESET_PULSE		0x01
-#define STATE_WAIT_DATA			0x02
-#define STATE_WRITE_DATE		0x03
-#define STATE_WAIT_AT_READY		0x04
-#define STATE_MISSING_DATA		0x05
-#define STATE_PROG_FINISHED		0x06
-
+typedef enum { MEMORY_FLASH = 0, MEMORY_EEPROM, MEMORY_ERR} AvrMemoryType;
 
 typedef struct {
 
-	uint8_t b1;
-	uint8_t b2;
-	uint8_t b3;
-	uint8_t b4;
+	uint8_t cmd[4];
 
 } AvrCommand;
 
 
-void 		AVRFlasher_init(void);
-void 		AVRFlasher_start(void);
-uint8_t 	AVRFlasher_get_state(void);
-void 		AVRFlasher_reset(uint16_t duration);
-void 		AVRFlasher_send_command(AvrCommand *command, uint8_t *res);
-void 		AVRFlasher_prog_enable(void);
+typedef struct {
+
+	uint8_t 	flash_load_hi_len;
+	char 		*flash_load_hi_pattern;
+
+	uint8_t		flash_load_lo_len;
+	char		*flash_load_lo_pattern;
+
+	uint8_t		flash_read_lo_len;
+	char		*flash_read_lo_pattern;
+
+	uint8_t		flash_read_hi_len;
+	char		*flash_read_hi_pattern;
+
+	uint8_t		flash_wait_ms;
+
+	uint8_t		eeprom_write_len;
+	char		*eeprom_write_pattern;
+
+	uint8_t 	eeprom_read_len;
+	char		*eeprom_read_pattern;
+
+	uint8_t		eeprom_wait_ms;
+
+	uint8_t		pgm_enable[AVR_CMD_SIZE];
 
 
-void AVRFlasher_reset_enable(void);
-void AVRFlasher_reset_disable(void);
+} AvrMcuData;
+
+
+typedef struct {
+
+	uint32_t 		start_address;
+	AvrMemoryType	memory_type;
+	uint8_t 		data_len;
+	uint8_t 		*data;
+
+} AvrProgMemData;
+
+typedef struct {
+
+	uint32_t start_address;
+	uint32_t bytes_to_read;
+
+} AvrReadMemData;
+
+
+void 			AVRFlasher_init(AvrMcuData data);
+void 			AVRFlasher_stop(void);
+
+AvrMcuData		AVRFlasher_get_mcu_info(Packet packet);
+AvrProgMemData	AVRFlasher_get_prog_mem_data(Packet packet);
+AvrReadMemData	AVRFlasher_get_read_mem_data(Packet packet);
+
+bool 			AVRFlasher_send_command(uint8_t *cmd, uint8_t len, uint8_t *res);
+bool 			AVRFlasher_prog_memory(AvrProgMemData mem_data);
+bool			AVRFlasher_prog_flash_mem(AvrProgMemData mem_data);
+bool 			AVRFlasher_prog_eeprom_mem(AvrProgMemData prog_data);
+Packet 			AVRFlasher_read_mem(AvrReadMemData mem_data);
+Packet			AVRFlasher_pgm_enable(void);
+
+void 			AVRFlasher_reset_enable(void);
+void 			AVRFlasher_reset_disable(void);
 
 #endif /* AVR_FLASHER_H_ */
