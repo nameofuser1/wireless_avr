@@ -17,7 +17,7 @@ uint8_t 	USART3_read(void);
 bool 		USART3_tx_array(uint8_t *data, uint8_t len);
 bool 		USART3_is_empty(void);
 uint32_t 	USART3_available(void);
-bool 		USART3_transmission_status(void);
+bool 		USART3_overflow(void);
 
 
 #endif /* PERIPH_USART3_H_ */
