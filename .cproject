@@ -24,7 +24,7 @@
 							<tool command="gcc" id="cdt.managedbuild.tool.gnu.cross.c.compiler.434874931" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
 								<option defaultValue="gnu.c.optimization.level.none" id="gnu.c.compiler.option.optimization.level.1658006816" name="Optimization Level" superClass="gnu.c.compiler.option.optimization.level" useByScannerDiscovery="false" valueType="enumerated"/>
 								<option id="gnu.c.compiler.option.debugging.level.658822877" name="Debug Level" superClass="gnu.c.compiler.option.debugging.level" useByScannerDiscovery="false" value="gnu.c.debugging.level.max" valueType="enumerated"/>
-								<option id="gnu.c.compiler.option.misc.other.1152964670" name="Other flags" superClass="gnu.c.compiler.option.misc.other" useByScannerDiscovery="false" value="-c -mthumb -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -g3 -O0 -ggdb -std=c99 -ffunction-sections" valueType="string"/>
+								<option id="gnu.c.compiler.option.misc.other.1152964670" name="Other flags" superClass="gnu.c.compiler.option.misc.other" useByScannerDiscovery="false" value="-c -mthumb -mcpu=cortex-m3 -mfix-cortex-m3-ldrd -g3 -O0 -ggdb -std=gnu99 -ffunction-sections" valueType="string"/>
 								<option id="gnu.c.compiler.option.include.paths.233414172" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="/home/kripton/Applications/EmbeddedArm/newlib/include"/>
 									<listOptionValue builtIn="false" value="/home/kripton/Applications/EmbeddedArm/cmsis_stm32f10/cmsis_core"/>
