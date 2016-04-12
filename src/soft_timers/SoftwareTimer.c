@@ -17,7 +17,7 @@ void SoftwareTimer_init(SoftwareTimer *tim)
 	tim->cb = NULL;
 	tim->state = Idle;
 	tim->ticks = 0;
-	tim->type = OnePulse;
+	tim->type = Timer_OnePulse;
 	tim->length = 0;
 }
 
@@ -177,7 +177,7 @@ void SoftwareTimer_tick(SoftTimerList *list)
 	while(node != NULL)
 	{
         SoftwareTimer *tim = (SoftwareTimer*)(node->data);
-        if(tim->type == Repeat)
+        if(tim->type == Timer_Repeat)
         {
             SoftwareTimer_arm(tim, tim->type, tim->length);
             SoftwareTimer_start(list, tim);
@@ -203,7 +203,7 @@ void SoftwareTimer_wait_for(SoftwareTimer *tim)
 		return;
 	}
 
-	if(tim->type == OnePulse)
+	if(tim->type == Timer_OnePulse)
 	{
 		while(tim->state != Done);
 	}
@@ -214,7 +214,7 @@ void SoftwareTimer_delay_ms(SoftTimerList *list, uint32_t ms)
 {
 	SoftwareTimer tim;
 	SoftwareTimer_init(&tim);
-	SoftwareTimer_arm(&tim, OnePulse, ms);
+	SoftwareTimer_arm(&tim, Timer_OnePulse, ms);
 	SoftwareTimer_start(list, &tim);
 	SoftwareTimer_wait_for(&tim);
 }

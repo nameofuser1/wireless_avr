@@ -20,8 +20,8 @@ typedef enum {
 } SoftTimerState;
 
 typedef enum {
-	Repeat,
-	OnePulse
+	Timer_Repeat,
+	Timer_OnePulse
 } SoftTimerType;
 
 typedef struct {

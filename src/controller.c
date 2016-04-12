@@ -10,6 +10,10 @@
 #include "PacketManager.h"
 #include "soft_timers/SoftwareTimer2.h"
 
+#include <stdio.h>
+#include <inttypes.h>
+#include <stm32f10x_crc.h>
+
 static void CONTROLLER_state_ready(void);
 static void CONTROLLER_state_read_prog_init(void);
 static void CONTROLLER_state_read_cmd(void);
@@ -29,15 +33,21 @@ static void (*actions[CONTROLLER_ACTION_NUM])(void);
 static SoftwareTimer timeout_timer;
 static SoftwareTimer wait_at_ready_timer;
 
+
+
 void CONTROLLER_init(void)
 {
 	printf("Controller init\r\n");
+	PacketManager_init();
+
 	SoftwareTimer2_init();
 	SoftwareTimer2_set_duration(1);	//1 ms
 	SoftwareTimer2_start();
 
 	SoftwareTimer_init(&timeout_timer);
 	SoftwareTimer_init(&wait_at_ready_timer);
+
+	ESP8266_init();
 
 	actions[READY] = CONTROLLER_state_ready;
 	actions[READ_PROG_INIT] = CONTROLLER_state_read_prog_init;
@@ -47,23 +57,20 @@ void CONTROLLER_init(void)
 	actions[READ_MEM] = CONTROLLER_state_read_mem;
 	actions[TERMINATE] = CONTROLLER_state_terminate;
 	actions[FAILED] = CONTROLLER_state_failed;
+
 }
 
 ResultCode CONTROLLER_perform_action(void)
 {
-	//printf("Call packet manager parse()\r\n");
 	PacketManager_parse();
-	//printf("Packet manager end parsing\r\n");
 
 	if(PacketManager_available())
 	{
-		printf("Packet manager available\r\n");
 		PacketType type = PacketManager_next_packet_type();
 
 		switch(type)
 		{
 			case STOP_PACKET:
-				printf("Got stop packet\r\n");
 				PacketManager_get_packet();
 				state = TERMINATE;
 				break;
@@ -181,17 +188,14 @@ static void CONTROLLER_state_read_cmd(void)
 	{
 		if(PacketManager_next_packet_type() == PROG_MEM_PACKET)
 		{
-			printf("Got memory programming command\r\n");
 			state = PROG_MEM;
 		}
 		else if(PacketManager_next_packet_type() == CMD_PACKET)
 		{
-			printf("Got command packet\r\n");
 			state = SEND_CMD;
 		}
 		else if(PacketManager_next_packet_type() == READ_MEM_PACKET)
 		{
-			printf("Got read memory packet\r\n");
 			state = READ_MEM;
 		}
 		else

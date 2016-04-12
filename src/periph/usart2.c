@@ -40,12 +40,12 @@ static bool overflow = false;
 
 void USART2_init(void)
 {
-    /* TX push-pull output, 10MHz */
+    /* PA2 TX push-pull output, 10MHz */
     GPIOB->CRH &= ~GPIO_CRH_CNF10;
     GPIOB->CRH |= GPIO_CRH_CNF10_1;  //Alternative function, push-pull as CNF9_0 = 0
     GPIOB->CRH |= GPIO_CRH_MODE10_0; //10 MHz
 
-    /* RX HI-Z input, 10MHz*/
+    /* PA3 RX HI-Z input, 10MHz*/
     GPIOB->CRH &= ~GPIO_CRH_CNF11;
     GPIOB->CRH |= GPIO_CRH_CNF11_0; //HI_Z
     GPIOB->CRH &= ~GPIO_CRH_MODE11; //Clear MODE <=> INPUT

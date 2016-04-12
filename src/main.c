@@ -1,9 +1,11 @@
-#include "stm32f10x_conf.h"
-#include "stm32f10x.h"
-#include <periph/usart1.h>
-#include <periph/usart3.h>
-#include <stdio.h>
+#include <crc32.h>
+#include <stm32f10x.h>
+#include "periph/usart1.h"
+#include "esp8266.h"
 #include "controller.h"
+#include <stdio.h>
+#include <inttypes.h>
+#include <stm32f10x_crc.h>
 #include "soft_timers/SoftwareTimer.h"
 #include "soft_timers/SoftwareTimer2.h"
 
@@ -22,15 +24,12 @@ int main(void)
 	NVIC_EnableIRQ(USART1_IRQn);
 	USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
 
-	USART3_init();
-    USART_Cmd(USART3, ENABLE);
-	NVIC_EnableIRQ(USART3_IRQn);
-	USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
+	RCC->AHBENR |= RCC_AHBENR_CRCEN;
 
-	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
+	ESP8266_WaitForReady();
 
-	printf("Init\r\n");
 	CONTROLLER_init();
+
 	while(1)
 	{
 		ResultCode code = CONTROLLER_perform_action();
@@ -83,10 +82,15 @@ static void gpio_init(void)
 	RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_AFIOEN;
 	RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
 
-	/* PA3(reset) 2MHz push-pull, high(no reset) */
-	//GPIOA->CRL &= ~GPIO_CRL_CNF3;
-	//GPIOA->CRL |= GPIO_CRL_MODE3_1;
-	//GPIOA->BSRR |= GPIO_BSRR_BS3;
+	/* PB4 ESP_READY INPUT FLOATING*/
+	GPIOB->CRL &= ~GPIO_CRL_CNF4;
+	GPIOB->CRL |= GPIO_CRL_CNF4_0;
+	GPIOA->CRL &= ~GPIO_CRL_MODE4;
+
+	/* PB3. Input floating. Transmission status GPIO */
+	GPIOB->CRL &= ~GPIO_CRL_CNF3;
+	GPIOB->CRL |= GPIO_CRL_CNF3_0;
+	GPIOB->CRL &= ~GPIO_CRL_MODE3;
 
 	/* PA8(reset) 2MHz push-pull, high(no reset)*/
 	GPIOA->CRH &= ~GPIO_CRH_CNF8;

@@ -33,8 +33,8 @@ static uint32_t usart3_tx_counter = 0;
 /*
  * Transmission status corresponding variable
  */
-//static void				counter_task(void);
-//static SoftwareTimer 	counter_timer;
+static void				counter_task(void);
+static SoftwareTimer 	counter_timer;
 static uint32_t 		time_counter;
 static uint32_t			last_char_timestamp;
 
@@ -65,10 +65,10 @@ void USART3_init(void)
 	usart.USART_Mode = USART_Mode_Tx | USART_Mode_Rx;
 	USART_Init(USART3, &usart);
 
-	//SoftwareTimer_init(&counter_timer);
-	//SoftwareTimer_arm(&counter_timer, Timer_Repeat, 1);
-	//SoftwareTimer_add_cb(&counter_timer, counter_task);
-	//SoftwareTimer_start(&soft_timer2, &counter_timer);
+	SoftwareTimer_init(&counter_timer);
+	SoftwareTimer_arm(&counter_timer, Timer_Repeat, 1);
+	SoftwareTimer_add_cb(&counter_timer, counter_task);
+	SoftwareTimer_start(&soft_timer2, &counter_timer);
 }
 
 /*
@@ -141,12 +141,11 @@ bool USART3_transmission_status(void)
  * Called as counter_timer callback
  * **********************************
  */
-/*
 static void counter_task(void)
 {
 	time_counter++;
 }
-*/
+
 
 /*
  * **********************************************************
@@ -168,14 +167,13 @@ void USART3_IRQHandler(void)
 			uint8_t data = (uint8_t)(USART_ReceiveData(USART3) & 0xFF);
 			usart3_rx_buffer[usart3_rx_wr_pointer] = data;
 			usart3_rx_wr_pointer = (usart3_rx_wr_pointer == USART3_RX_BUF_SIZE-1) ? 0 : usart3_rx_wr_pointer+1;
+			usart3_rx_counter++;
 		}
 		else
 		{
 			/* Temp error */
 			USART_ReceiveData(USART3);
 		}
-
-		USART_ClearITPendingBit(USART3, USART_IT_RXNE);
 	}
 
 	if(USART_GetITStatus(USART3, USART_IT_TC) == SET)
