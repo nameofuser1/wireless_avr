@@ -38,8 +38,10 @@ void AVRFlasher_init(AvrMcuData data)
 {
 	mcu_info = data;
 
+	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 	SPI1_init();
 	SPI1_enable();
+
 	initialized = true;
 
 }
@@ -213,7 +215,7 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
  */
 AvrProgMemData	AVRFlasher_get_prog_mem_data(Packet packet)
 {
-	printf("Getting prog mem data\r\n");
+	//printf("Getting prog mem data\r\n");
 	AvrProgMemData mem_data;
 
 	mem_data.start_address = (packet.data[0] << 24) | (packet.data[1] << 16) | (packet.data[2] << 8) |
@@ -225,7 +227,7 @@ AvrProgMemData	AVRFlasher_get_prog_mem_data(Packet packet)
 
 	memcpy(mem_data.data, packet.data+5, mem_data.data_len);
 
-	printf("Got prog mem data\r\n");
+	//printf("Got prog mem data\r\n");
 	return mem_data;
 }
 
@@ -366,7 +368,7 @@ bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
 		}
 	}
 
-	printf("Successfully wrote flash memory");
+	printf("Successfully wrote flash memory\r\n");
 
 	return true;
 }
@@ -476,7 +478,7 @@ void AVRFlasher_reset_disable(void)
 static void
 AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len, uint32_t addr, uint8_t input, uint8_t *cmd)
 {
-	printf("Begin memory cmd creation\r\n");
+	//printf("Begin memory cmd creation\r\n");
 	memset(cmd, 0, sizeof(uint8_t)*AVR_CMD_SIZE);
 
 	uint8_t cmd_byte_offset = 0;
@@ -525,11 +527,11 @@ AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len, uint32_t addr, 
 		}
 	}
 
-	printf("Created command is: ");
-	for(uint32_t i=0; i<AVR_CMD_SIZE; i++)
-	{
-		printf("0x%02x ", cmd[i]);
-	}
+	//printf("Created command is: ");
+	//for(uint32_t i=0; i<AVR_CMD_SIZE; i++)
+	//{
+		//printf("0x%02x ", cmd[i]);
+	//}
 }
 
 
