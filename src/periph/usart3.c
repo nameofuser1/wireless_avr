@@ -82,7 +82,11 @@ uint8_t USART3_read(void)
 	{
 		uint8_t byte = usart3_rx_buffer[usart3_rx_rd_pointer];
 		usart3_rx_rd_pointer = (usart3_rx_rd_pointer == USART3_RX_BUF_SIZE-1) ? 0 : usart3_rx_rd_pointer+1;
+
+		NVIC_DisableIRQ(USART3_IRQn);
 		usart3_rx_counter--;
+		NVIC_EnableIRQ(USART3_IRQn);
+
 		return byte;
 	}
 	return 0;
@@ -96,31 +100,33 @@ uint8_t USART3_read(void)
  */
 bool USART3_tx_array(uint8_t *data, uint8_t len)
 {
+	NVIC_DisableIRQ(USART3_IRQn);
 	if(len + usart3_tx_counter > USART3_TX_BUF_SIZE)
 	{
 		return false;
 	}
+
+	usart3_tx_counter += len;
+	NVIC_EnableIRQ(USART3_IRQn);
 
 	for(uint32_t i=0; i<len; i++)
 	{
 		usart3_tx_buffer[usart3_tx_wr_pointer] = data[i];
 		usart3_tx_wr_pointer = (usart3_tx_wr_pointer == USART3_TX_BUF_SIZE-1) ? 0 :usart3_tx_wr_pointer+1;
 	}
-	usart3_tx_counter += len;
+
 
 	USART_ITConfig(USART3, USART_IT_TXE, ENABLE);
 	return true;
 }
 
 
-bool USART3_is_empty(void)
-{
-	return (usart3_rx_counter == 0);
-}
-
-
 uint32_t USART3_available(void)
 {
+	NVIC_DisableIRQ(USART3_IRQn);
+	uint32_t rx_counter_copy = usart3_rx_counter;
+	NVIC_EnableIRQ(USART3_IRQn);
+
 	return usart3_rx_counter;
 }
 
@@ -174,7 +180,13 @@ void USART3_IRQHandler(void)
 		else
 		{
 			/* Temp error */
-			USART_ReceiveData(USART3);
+			//USART_ReceiveData(USART3);
+			last_char_timestamp = time_counter;
+
+			uint8_t data = (uint8_t)(USART_ReceiveData(USART3) & 0xFF);
+			usart3_rx_buffer[usart3_rx_wr_pointer] = data;
+			usart3_rx_wr_pointer = (usart3_rx_wr_pointer == USART3_RX_BUF_SIZE-1) ? 0 : usart3_rx_wr_pointer+1;
+			usart3_rx_counter++;
 		}
 	}
 

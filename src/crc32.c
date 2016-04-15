@@ -16,18 +16,20 @@ static uint32_t crc32_table[256];
 
 void crc32_init(void)
 {
-        uint32_t i, j;
-        uint32_t c;
-        for (i = 0; i < 256; ++i)
-        {
-			c = i << 24;
-			for (j = 8; j > 0; --j)
-			{
-					c = (c & 0x80000000) ? (c << 1) ^ CRC32_POLY : (c << 1);
-			}
+	RCC->AHBENR |= RCC_AHBENR_CRCEN;
 
-			crc32_table[i] = c;
-        }
+	uint32_t i, j;
+	uint32_t c;
+	for (i = 0; i < 256; ++i)
+	{
+		c = i << 24;
+		for (j = 8; j > 0; --j)
+		{
+				c = (c & 0x80000000) ? (c << 1) ^ CRC32_POLY : (c << 1);
+		}
+
+		crc32_table[i] = c;
+	}
 }
 
 

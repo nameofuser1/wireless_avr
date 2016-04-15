@@ -16,15 +16,15 @@ static void gpio_init(void);
 int main(void)
 {
 	CLOCK_init();
+	__enable_fault_irq();
 	__enable_irq();
+
 	gpio_init();
 
 	USART1_init();
 	USART_Cmd(USART1, ENABLE);
 	NVIC_EnableIRQ(USART1_IRQn);
 	USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
-
-	RCC->AHBENR |= RCC_AHBENR_CRCEN;
 
 	ESP8266_WaitForReady();
 

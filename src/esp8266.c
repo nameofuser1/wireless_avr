@@ -57,14 +57,14 @@ bool ESP8266_SendPacket(Packet packet)
 			memcpy(last_packet.data, packet.data, packet.data_length);
 			last_packet.data_length = packet.data_length;
 		}
-
+/*
 		printf("Sending packet: ");
 		for(uint16_t i=0; i<packet.data_length; i++)
 		{
 			printf("0x%02x ", packet.data[i]);
 		}
 		printf("\r\n");
-
+*/
 		USART3_tx_array(packet.data, packet.data_length);
 
 		return true;

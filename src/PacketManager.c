@@ -174,6 +174,7 @@ bool PacketManager_parse(void)
 			parsing_buf[parsing_len++] = ESP8266_read();
 		}
 
+		printf("Got %" PRIu16 " bytes\r\n", parsing_len);
 		if(parsing_len == parsing_packet_length)
 		{
 			if(packets_available+1 > PACKETS_BUF_SIZE)
