@@ -57,7 +57,7 @@ void USART3_init(void)
     USART_InitTypeDef usart;
 
     USART_StructInit(&usart);
-	usart.USART_BaudRate = 57600;
+	usart.USART_BaudRate = 115200;
 	usart.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
 	usart.USART_Parity = USART_Parity_No;
 	usart.USART_WordLength = USART_WordLength_8b;
@@ -143,7 +143,9 @@ bool USART3_transmission_status(void)
  */
 static void counter_task(void)
 {
+	NVIC_DisableIRQ(USART3_IRQn);
 	time_counter++;
+	NVIC_EnableIRQ(USART3_IRQn);
 }
 
 
