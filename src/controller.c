@@ -164,6 +164,7 @@ static void CONTROLLER_state_read_prog_init(void)
 			ESP8266_SendPacket(en_packet);
 
 			PacketManager_free(en_packet);
+
 			state = READ_CMD;
 		}
 		else
@@ -264,6 +265,8 @@ static void CONTROLLER_state_prog_mem(void)
 		{
 			state = FAILED;
 		}
+
+		free(mem_data.data);
 	}
 
 	PacketManager_free(memory_packet);
