@@ -127,7 +127,7 @@ uint32_t USART3_available(void)
 	uint32_t rx_counter_copy = usart3_rx_counter;
 	NVIC_EnableIRQ(USART3_IRQn);
 
-	return usart3_rx_counter;
+	return rx_counter_copy;
 }
 
 
