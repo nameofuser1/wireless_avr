@@ -39,8 +39,9 @@ bool ESP8266_TransmissionStatus(void);
  */
 bool ESP8266_LoadNetworkData(uint8_t *ssid, uint8_t ssid_len, uint8_t *pwd, uint8_t pwd_len);
 
-uint32_t ESP8266_available(void);
-uint8_t  ESP8266_read(void);
+uint32_t 	ESP8266_available(void);
+uint8_t  	ESP8266_read(void);
+void		ESP8266_flush_rx(void);
 
 
 

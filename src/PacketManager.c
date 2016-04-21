@@ -67,7 +67,7 @@ static uint8_t	packets_rd_pointer = 0;
 static uint8_t 		parsing_buf[PARSING_BUF_SIZE];
 static PacketType	parsing_packet_type = NONE_PACKET;
 static uint16_t 	parsing_packet_length = 0;
-static uint16_t 		parsing_len = 0;
+static uint16_t 	parsing_len = 0;
 
 
 void PacketManager_init(void)
@@ -96,7 +96,7 @@ bool PacketManager_parse(void)
 				parsing_packet_length |= (parsing_buf[0] << 8) & 0xFF00;
 				parsing_packet_length |= (parsing_buf[1] & 0xFF);
 
-				printf("Got packet length: %" PRIu16 "\r\n", parsing_packet_length);
+				//printf("Got packet length: %" PRIu16 "\r\n", parsing_packet_length);
 			}
 			else
 			{
@@ -174,7 +174,7 @@ bool PacketManager_parse(void)
 			parsing_buf[parsing_len++] = ESP8266_read();
 		}
 
-		printf("Got %" PRIu16 " bytes\r\n", parsing_len);
+		//printf("Got %" PRIu16 " bytes\r\n", parsing_len);
 		if(parsing_len == parsing_packet_length)
 		{
 			if(packets_available+1 > PACKETS_BUF_SIZE)
@@ -231,6 +231,8 @@ bool PacketManager_parse(void)
 		else if(!ESP8266_TransmissionStatus())
 		{
 			printf("Missing packet bytes\r\n");
+
+			ESP8266_flush_rx();
 			ESP8266_SendError(WRONG_PACKET_BYTE);
 		}
 	}

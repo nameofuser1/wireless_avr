@@ -142,6 +142,23 @@ bool USART3_transmission_status(void)
 	return ((time_counter - last_char_timestamp) < 5);
 }
 
+
+void USART3_flush_rx(void)
+{
+	NVIC_DisableIRQ(USART3_IRQn);
+	usart3_rx_counter = 0;
+	NVIC_EnableIRQ(USART3_IRQn);
+}
+
+
+void USART3_flush_tx(void)
+{
+	NVIC_DisableIRQ(USART3_IRQn);
+	usart3_tx_counter = 0;
+	NVIC_EnableIRQ(USART3_IRQn);
+}
+
+
 /*
  * **********************************
  * Called as counter_timer callback

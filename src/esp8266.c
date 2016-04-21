@@ -96,12 +96,6 @@ bool ESP8266_SendError(uint8_t error)
 }
 
 
-uint32_t ESP8266_available(void)
-{
-	return USART3_available();
-}
-
-
 bool ESP8266_SendLastPacket(void)
 {
 	return ESP8266_SendPacket(last_packet);
@@ -114,9 +108,21 @@ bool ESP8266_TransmissionStatus(void)
 }
 
 
+uint32_t ESP8266_available(void)
+{
+	return USART3_available();
+}
+
+
 uint8_t ESP8266_read(void)
 {
 	return USART3_read();
+}
+
+
+void ESP8266_flush_rx(void)
+{
+	USART3_flush_rx();
 }
 
 
