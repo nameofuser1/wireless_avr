@@ -8,16 +8,16 @@
 
 typedef struct LinkedListNode {
 
-    void                    (*data);
-    struct LinkedListNode   (*next);
+    void                    *data;
+    struct LinkedListNode   *next;
 
 }   LinkedListNode;
 
 
 typedef struct {
 
-    LinkedListNode      (*head);
-    LinkedListNode      (*tail);
+    LinkedListNode      *head;
+    LinkedListNode      *tail;
 
 }   LinkedList;
 
