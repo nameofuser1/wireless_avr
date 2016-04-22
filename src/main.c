@@ -1,6 +1,7 @@
 #include <crc32.h>
 #include <stm32f10x.h>
 #include "periph/usart1.h"
+#include <stm32f10x_usart.h>
 #include "esp8266.h"
 #include "controller.h"
 #include <stdio.h>
