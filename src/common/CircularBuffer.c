@@ -26,7 +26,7 @@ void CircularBuffer_free(CircularBuffer *buffer, bool free_items)
 {
     if(free_items)
     {
-        for(int i=0; i<buffer->buffer_size; i++)
+        for(uint32_t i=0; i<buffer->buffer_size; i++)
         {
             free((buffer->data)[i]);
         }
@@ -38,7 +38,7 @@ void CircularBuffer_free(CircularBuffer *buffer, bool free_items)
 void CircularBuffer_put(CircularBuffer *buffer, void *data)
 {
     void **buffer_data = buffer->data;
-    int write_pointer = buffer->write_pointer;
+    uint32_t write_pointer = buffer->write_pointer;
     buffer_data[write_pointer] = data;
 
     if(write_pointer < buffer->buffer_size-1)
@@ -56,7 +56,7 @@ void* CircularBuffer_get(CircularBuffer *buffer)
 {
     void *res = NULL;
     void **buffer_data = buffer->data;
-    int read_pointer = buffer->read_pointer;
+    uint32_t read_pointer = buffer->read_pointer;
     if(buffer_data[read_pointer] != NULL)
     {
         res = buffer_data[read_pointer];

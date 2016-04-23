@@ -394,6 +394,7 @@ bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
  */
 bool AVRFlasher_prog_eeprom_mem(AvrProgMemData prog_data)
 {
+	(void)prog_data;
 	return true;
 }
 

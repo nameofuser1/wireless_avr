@@ -11,6 +11,8 @@
 #include "periph/usart.h"
 #include "periph/usart1.h"
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 #undef errno
 extern int errno;
 extern int  _end;
