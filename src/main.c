@@ -29,9 +29,9 @@ int main(void)
 
 	ESP8266_WaitForReady();
 
-	GPIOB->BSRR |= GPIO_BSRR_BS4;
-	for(volatile uint32_t i=0; i<1000000; i++);
-	GPIOB->BSRR |= GPIO_BSRR_BR4;
+	GPIOB->BSRR |= GPIO_BSRR_BS5;
+	for(volatile uint32_t i=0; i<4000000; i++);
+	GPIOB->BSRR |= GPIO_BSRR_BR5;
 
 	CONTROLLER_init();
 
@@ -87,15 +87,22 @@ static void gpio_init(void)
 	RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_AFIOEN;
 	RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
 
-	/* PB4. Push-Pull 2MHz. Network info ready */
+	/* PB5. Push-Pull 2MHz. Network info. */
+	GPIOB->CRL &= ~GPIO_CRL_CNF5;
+	GPIOB->CRL |= GPIO_CRL_MODE5_1;
+	GPIOB->BSRR |= GPIO_BSRR_BR5;
+
+	/* PB4. Input pull down. ESP ready. */
 	GPIOB->CRL &= ~GPIO_CRL_CNF4;
 	GPIOB->CRL |= GPIO_CRL_CNF4_1;
-	GPIOA->CRL |= GPIO_CRL_MODE4_1;
+	GPIOB->CRL &= ~GPIO_CRL_MODE4;
+	GPIOB->ODR &= ~GPIO_ODR_ODR4;
 
-	/* PB3. Input floating. ESP ready. */
+	/* PB3. Input pull-down. ESP ready. Doesn't work in some reason */
 	GPIOB->CRL &= ~GPIO_CRL_CNF3;
-	GPIOB->CRL |= GPIO_CRL_CNF3_0;
+	GPIOB->CRL |= GPIO_CRL_CNF3_1;
 	GPIOB->CRL &= ~GPIO_CRL_MODE3;
+	GPIOB->ODR &= ~GPIO_ODR_ODR3;
 
 	/* PA8(reset) 2MHz push-pull, high(no reset)*/
 	GPIOA->CRH &= ~GPIO_CRH_CNF8;
