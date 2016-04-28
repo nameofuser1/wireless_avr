@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stm32f10x_crc.h>
+#include <stm32f10x_exti.h>
 #include "soft_timers/SoftwareTimer.h"
 #include "soft_timers/SoftwareTimer2.h"
 
@@ -27,16 +28,24 @@ int main(void)
 	NVIC_EnableIRQ(USART1_IRQn);
 	USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
 
-	ESP8266_WaitForReady();
-
-	GPIOB->BSRR |= GPIO_BSRR_BS5;
-	for(volatile uint32_t i=0; i<4000000; i++);
-	GPIOB->BSRR |= GPIO_BSRR_BR5;
+	/*
+	 * I know, I know...
+	 * But it's the best way at time
+	 */
+	esp_wait_ready:
+		ESP8266_WaitForReady();
 
 	CONTROLLER_init();
 
 	while(1)
 	{
+		if(!ESP8266_Ready())
+		{
+			printf("Esp disconected\r\n");
+			CONTROLLER_DeInit();
+			goto esp_wait_ready;
+		}
+
 		ResultCode code = CONTROLLER_perform_action();
 		ProgramState state = CONTROLLER_get_state();
 		switch(code)
@@ -128,6 +137,19 @@ static void gpio_init(void)
 	GPIOA->CRL &= ~GPIO_CRL_CNF6;
 	GPIOA->CRL &= ~GPIO_CRL_MODE6;
 	GPIOA->CRL |= GPIO_CRL_CNF6_0;
+
+	/*
+	 * External interrupt on line 4
+	 * On GPIOB 4. Rising/falling edges;
+	 */
+	/*
+	AFIO->EXTICR[2] |= AFIO_EXTICR2_EXTI4_PB;
+	EXTI->IMR |= EXTI_IMR_MR4;
+	EXTI->RTSR |= EXTI_RTSR_TR4;
+	EXTI->FTSR |= EXTI_FTSR_TR4;
+	*/
+
+	NVIC_EnableIRQ(EXTI4_IRQn);
 }
 
 

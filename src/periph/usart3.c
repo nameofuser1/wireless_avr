@@ -69,6 +69,28 @@ void USART3_init(void)
 	SoftwareTimer_arm(&counter_timer, Timer_Repeat, 1);
 	SoftwareTimer_add_cb(&counter_timer, counter_task);
 	SoftwareTimer_start(&soft_timer2, &counter_timer);
+
+    USART_Cmd(USART3, ENABLE);
+	NVIC_EnableIRQ(USART3_IRQn);
+	USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
+
+}
+
+
+void USART3_deinit(void)
+{
+	USART_ITConfig(USART3, USART_IT_TXE, DISABLE);
+	USART_ITConfig(USART3, USART_IT_RXNE, DISABLE);
+
+	NVIC_DisableIRQ(USART3_IRQn);
+
+	USART_DeInit(USART3);
+	USART_Cmd(USART3, DISABLE);
+
+	USART3_flush_rx();
+	USART3_flush_tx();
+
+	SoftwareTimer_stop(&soft_timer2, &counter_timer);
 }
 
 /*

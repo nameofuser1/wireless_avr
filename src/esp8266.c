@@ -5,7 +5,7 @@
  *      Author: kripton
  */
 #include "esp8266.h"
-#include "periph/usart.h"
+#include "periph/usart1.h"
 #include "periph/usart3.h"
 #include "PacketManager.h"
 #include <stddef.h>
@@ -18,16 +18,24 @@ static Packet last_packet;
 
 #define ESP_STATUS_GPIO 		GPIOB
 #define ESP_STATUS_GPIO_IDR		GPIO_IDR_IDR4
-
 #define ESP_STATUS_GPIO_READ()	(ESP_STATUS_GPIO->IDR & ESP_STATUS_GPIO_IDR)
+
+#define ESP_INFO_LOAD_GPIO				GPIOB
+#define ESP_INFO_LOAD_GPIO_BS			GPIO_BSRR_BS5
+#define ESP_INFO_LOAD_GPIO_BR			GPIO_BSRR_BR5
+#define ESP_INFO_LOAD_GPIO_ENABLE()		(ESP_INFO_LOAD_GPIO->BSRR |= ESP_INFO_LOAD_GPIO_BS)
+#define ESP_INFO_LOAD_GPIO_DISABLE()	(ESP_INFO_LOAD_GPIO->BSRR |= ESP_INFO_LOAD_GPIO_BR)
 
 
 void ESP8266_init(void)
 {
 	USART3_init();
-    USART_Cmd(USART3, ENABLE);
-	NVIC_EnableIRQ(USART3_IRQn);
-	USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
+}
+
+
+void ESP8266_DeInit(void)
+{
+	USART3_deinit();
 }
 
 
@@ -38,6 +46,12 @@ void ESP8266_WaitForReady(void)
 	{
 		for(volatile uint32_t i=0; i<1000000; i++);
 	}
+}
+
+
+bool ESP8266_Ready(void)
+{
+	return ESP_STATUS_GPIO_READ();
 }
 
 
@@ -57,14 +71,7 @@ bool ESP8266_SendPacket(Packet packet)
 			memcpy(last_packet.data, packet.data, packet.data_length);
 			last_packet.data_length = packet.data_length;
 		}
-/*
-		printf("Sending packet: ");
-		for(uint16_t i=0; i<packet.data_length; i++)
-		{
-			printf("0x%02x ", packet.data[i]);
-		}
-		printf("\r\n");
-*/
+
 		USART3_tx_array(packet.data, packet.data_length);
 
 		return true;
@@ -102,6 +109,40 @@ bool ESP8266_SendLastPacket(void)
 }
 
 
+void ESP8266_LoadNetworkData(void)
+{
+	/*
+	 * 1 byte for packet size
+	 * 1 byte for ssid len
+	 * 1 byte for pwd len
+	 * 1 null character byte
+	 */
+	if(USART1_available() > 4)
+	{
+		uint8_t available = USART1_available();
+
+		printf("Got network info packet\r\n");
+
+		Packet packet;
+		packet.type = CMD_PACKET;
+		packet.data = malloc(sizeof(uint8_t)*available);
+		packet.data_length = available;
+
+		uint8_t k = 0;
+		while(available-- > 0)
+		{
+			packet.data[k++] = USART1_read();
+			printf("0x%02x\r\n", packet.data[k-1]);
+		}
+
+		//ESP_INFO_LOAD_GPIO_ENABLE();
+		ESP8266_SendPacket(packet);
+
+		free(packet.data);
+	}
+}
+
+
 bool ESP8266_TransmissionStatus(void)
 {
 	return USART3_transmission_status();
@@ -123,6 +164,12 @@ uint8_t ESP8266_read(void)
 void ESP8266_flush_rx(void)
 {
 	USART3_flush_rx();
+}
+
+
+void ESP8266_flush_tx(void)
+{
+	USART3_flush_tx();
 }
 
 

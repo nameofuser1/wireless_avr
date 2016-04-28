@@ -30,10 +30,6 @@ static ProgramState state = READY;
 static ResultCode error = NONE;
 static void (*actions[CONTROLLER_ACTION_NUM])(void);
 
-static SoftwareTimer timeout_timer;
-static SoftwareTimer wait_at_ready_timer;
-
-
 
 void CONTROLLER_init(void)
 {
@@ -44,10 +40,9 @@ void CONTROLLER_init(void)
 	SoftwareTimer2_set_duration(1);	//1 ms
 	SoftwareTimer2_start();
 
-	SoftwareTimer_init(&timeout_timer);
-	SoftwareTimer_init(&wait_at_ready_timer);
-
 	ESP8266_init();
+	ESP8266_flush_rx();
+	ESP8266_flush_tx();
 
 	actions[READY] = CONTROLLER_state_ready;
 	actions[READ_PROG_INIT] = CONTROLLER_state_read_prog_init;
@@ -58,7 +53,15 @@ void CONTROLLER_init(void)
 	actions[TERMINATE] = CONTROLLER_state_terminate;
 	actions[FAILED] = CONTROLLER_state_failed;
 
+	state = READY;
 }
+
+
+void CONTROLLER_DeInit(void)
+{
+	CONTROLLER_state_terminate();
+}
+
 
 ResultCode CONTROLLER_perform_action(void)
 {
@@ -70,9 +73,12 @@ ResultCode CONTROLLER_perform_action(void)
 
 		switch(type)
 		{
-			case STOP_PACKET:
+			case STOP_PROGRAMMER_PACKET:
 				PacketManager_get_packet();
-				state = TERMINATE;
+				ESP8266_SendAck();
+				AVRFlasher_stop();
+				AVRFlasher_reset_disable();
+
 				break;
 
 			case RESET_PACKET:
@@ -239,9 +245,6 @@ static void CONTROLLER_state_send_cmd(void)
 	}
 
 	PacketManager_free(cmd_packet);
-	//printf("Get avr answer: ");
-	//for(int i=0; i<4; i++) printf("0x%02x ", res[i]);
-	//printf("\r\n\r\n");
 }
 
 
@@ -306,10 +309,7 @@ static void CONTROLLER_state_read_mem(void)
  */
 static void CONTROLLER_state_terminate(void)
 {
-	AVRFlasher_stop();
-	AVRFlasher_reset_disable();
-	ESP8266_SendAck();
-	SoftwareTimer_wait_for(&timeout_timer);
+	ESP8266_DeInit();
 	state = READY;
 }
 
@@ -321,10 +321,6 @@ static void CONTROLLER_state_terminate(void)
  */
 static void CONTROLLER_state_failed(void)
 {
-	//AVRFlasher_stop();
-	//AVRFlasher_reset_disable();
-	ESP8266_SendError(error);
-	SoftwareTimer_wait_for(&timeout_timer);
 	error = NONE;
 	state = READ_CMD;
 }

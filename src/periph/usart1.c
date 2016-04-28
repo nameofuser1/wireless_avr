@@ -6,6 +6,7 @@
  */
 
 #include <periph/usart1.h>
+#include "esp8266.h"
 
 
 #define USART1_RX_BUF_SIZE 128
@@ -29,7 +30,7 @@ static uint32_t usart1_tx_counter = 0;
 
 static bool overflow = false;
 
-
+static uint8_t packet_len = 0;
 
 void USART1_init(void)
 {
@@ -81,6 +82,7 @@ uint8_t USART1_read(void)
 		usart1_rx_counter--;
 		return byte;
 	}
+
 	return 0;
 }
 
@@ -136,6 +138,25 @@ void USART1_IRQHandler(void)
 			if(++usart1_rx_counter == USART1_RX_BUF_SIZE)
 			{
 				overflow = true;
+			}
+
+			if(usart1_rx_counter >= 2)
+			{
+				if(packet_len == 0)
+				{
+					if(usart1_rx_rd_pointer == USART1_RX_BUF_SIZE -1)
+					{
+						packet_len = usart1_rx_buffer[0];
+					}
+					else
+					{
+						packet_len = usart1_rx_buffer[usart1_rx_rd_pointer+1];
+					}
+				}
+				else if(usart1_rx_counter == packet_len)
+				{
+					ESP8266_LoadNetworkData();
+				}
 			}
 		}
 		else

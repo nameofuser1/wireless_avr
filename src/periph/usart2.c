@@ -6,6 +6,8 @@
  */
 #include "usart2.h"
 
+#include "esp8266.h"
+
 /*
  * usart3.c
  *

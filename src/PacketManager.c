@@ -30,6 +30,7 @@
 #define AVR_PROG_INIT_BYTE		0x77
 #define READ_MEM_PACKET_BYTE	0x88
 #define PGM_ENABLE_PACKET_BYTE	0x99
+#define NETWORK_INFO_LOADED		0x98
 
 #define INTERNAL_ERROR_BYTE		0x00
 #define WRONG_PACKET_BYTE		0x01
@@ -53,7 +54,7 @@
 static char* packet_names[PACKETS_TYPES_NUMBER] =
 {
 	"ProgInit", "Stop", 		"Cmd", 			"Reset", 		"Error", 	"ProgMem", "ReadMem",
-	"Usart", 	"UsartInit", 	"AvrProgInit",  "PGM enable", 	"ACK", 		"Memory",  "LOG"
+	"Usart", 	"UsartInit", 	"AvrProgInit",  "PGM enable", 	"ACK", 		"Memory",  "LOG",
 };
 
 
@@ -122,7 +123,7 @@ bool PacketManager_parse(void)
 						break;
 
 					case STOP_PACKET_BYTE:
-						parsing_packet_type = STOP_PACKET;
+						parsing_packet_type = STOP_PROGRAMMER_PACKET;
 						break;
 
 					case CMD_PACKET_BYTE:
@@ -153,7 +154,7 @@ bool PacketManager_parse(void)
 						parsing_packet_type = ERROR_PACKET;
 						break;
 
-					case LOG_PACKET_BYTE:;
+					case LOG_PACKET_BYTE:
 						parsing_packet_type = LOG_PACKET;
 						break;
 
