@@ -78,6 +78,7 @@ ResultCode CONTROLLER_perform_action(void)
 				ESP8266_SendAck();
 				AVRFlasher_stop();
 				AVRFlasher_reset_disable();
+				state = READY;
 
 				break;
 

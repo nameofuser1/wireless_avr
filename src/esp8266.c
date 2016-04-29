@@ -132,7 +132,6 @@ void ESP8266_LoadNetworkData(void)
 		while(available-- > 0)
 		{
 			packet.data[k++] = USART1_read();
-			printf("0x%02x\r\n", packet.data[k-1]);
 		}
 
 		//ESP_INFO_LOAD_GPIO_ENABLE();
