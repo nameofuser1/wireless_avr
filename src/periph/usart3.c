@@ -122,10 +122,12 @@ uint8_t USART3_read(void)
  */
 bool USART3_read_arr(uint8_t *buf, uint32_t len)
 {
+	NVIC_DisableIRQ(USART3_IRQn);
 	if(usart3_rx_counter < len || len > USART3_RX_BUF_SIZE)
 	{
 		return false;
 	}
+	NVIC_EnableIRQ(USART3_IRQn);
 
 	uint32_t write_offset = 0;
 	uint32_t bytes_to_read = len;
@@ -133,7 +135,7 @@ bool USART3_read_arr(uint8_t *buf, uint32_t len)
 
 	if(index > USART3_RX_BUF_SIZE-1)
 	{
-		uint32_t bytes_until_buffer_end = index - (USART3_RX_BUF_SIZE-1);
+		uint32_t bytes_until_buffer_end = USART3_RX_BUF_SIZE - usart3_rx_rd_pointer;
 		memcpy(buf, &(usart3_rx_buffer[usart3_rx_rd_pointer]), bytes_until_buffer_end);
 		write_offset = bytes_until_buffer_end;
 
@@ -164,16 +166,29 @@ bool USART3_tx_array(uint8_t *data, uint8_t len)
 	{
 		return false;
 	}
-
-	usart3_tx_counter += len;
 	NVIC_EnableIRQ(USART3_IRQn);
 
-	for(uint32_t i=0; i<len; i++)
+	uint32_t read_offset = 0;
+	uint32_t bytes_to_write = len;
+	uint32_t index = bytes_to_write + usart3_tx_wr_pointer;
+
+	if(index > USART3_TX_BUF_SIZE-1)
 	{
-		usart3_tx_buffer[usart3_tx_wr_pointer] = data[i];
-		usart3_tx_wr_pointer = (usart3_tx_wr_pointer == USART3_TX_BUF_SIZE-1) ? 0 :usart3_tx_wr_pointer+1;
+		uint32_t bytes_until_buffer_end = USART3_TX_BUF_SIZE - usart3_tx_wr_pointer;
+		memcpy(&(usart3_tx_buffer[usart3_tx_wr_pointer]), data, bytes_until_buffer_end);
+
+		usart3_tx_wr_pointer = 0;
+
+		read_offset = bytes_until_buffer_end;
+		bytes_to_write -= bytes_until_buffer_end;
 	}
 
+	memcpy(&(usart3_tx_buffer[usart3_tx_wr_pointer]), &(data[read_offset]), bytes_to_write);
+	usart3_tx_wr_pointer += bytes_to_write;
+
+	NVIC_DisableIRQ(USART3_IRQn);
+	usart3_tx_counter += len;
+	NVIC_EnableIRQ(USART3_IRQn);
 
 	USART_ITConfig(USART3, USART_IT_TXE, ENABLE);
 	return true;
