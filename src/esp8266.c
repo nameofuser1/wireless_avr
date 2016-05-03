@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
-static Packet last_packet;
+//static Packet last_packet;
 
 #define ESP_STATUS_GPIO 		GPIOB
 #define ESP_STATUS_GPIO_IDR		GPIO_IDR_IDR4
@@ -59,7 +59,7 @@ bool ESP8266_SendPacket(Packet packet)
 {
 	if(packet.type != NONE_PACKET)
 	{
-
+		/*
 		if(packet.data != last_packet.data)
 		{
 			if(last_packet.data != NULL)
@@ -71,6 +71,7 @@ bool ESP8266_SendPacket(Packet packet)
 			memcpy(last_packet.data, packet.data, packet.data_length);
 			last_packet.data_length = packet.data_length;
 		}
+		*/
 
 		USART3_tx_array(packet.data, packet.data_length);
 
@@ -105,7 +106,7 @@ bool ESP8266_SendError(uint8_t error)
 
 bool ESP8266_SendLastPacket(void)
 {
-	return ESP8266_SendPacket(last_packet);
+	return true; //ESP8266_SendPacket(last_packet);
 }
 
 

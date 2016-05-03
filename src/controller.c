@@ -74,18 +74,24 @@ ResultCode CONTROLLER_perform_action(void)
 		switch(type)
 		{
 			case STOP_PROGRAMMER_PACKET:
-				PacketManager_get_packet();
+
 				ESP8266_SendAck();
+
+				Packet packet = PacketManager_get_packet();
+				PacketManager_free(packet);
+
 				AVRFlasher_stop();
 				AVRFlasher_reset_disable();
-				state = READY;
 
+				state = READY;
 				break;
 
 			case RESET_PACKET:
-				if(true){};
 
-				Packet reset_packet = reset_packet = PacketManager_get_packet();
+				ESP8266_SendAck();
+
+				Packet reset_packet = PacketManager_get_packet();
+
 				if(reset_packet.data[0] == 1)
 				{
 					AVRFlasher_reset_enable();
@@ -95,7 +101,7 @@ ResultCode CONTROLLER_perform_action(void)
 					AVRFlasher_reset_disable();
 				}
 
-				ESP8266_SendAck();
+				PacketManager_free(reset_packet);
 				break;
 
 			default:
@@ -123,11 +129,11 @@ static void CONTROLLER_state_ready(void)
 {
 	if(PacketManager_available())
 	{
-		printf("State ready. Packet manager available\r\n");
+		//printf("State ready. Packet manager available\r\n");
 		Packet packet = PacketManager_get_packet();
 		if(packet.type == PROG_INIT_PACKET)
 		{
-			printf("State ready. Got prog init packet\r\n");
+			//printf("State ready. Got prog init packet\r\n");
 			if(!ESP8266_SendAck())
 			{
 				printf("Failed to send ack\r\n");
@@ -138,7 +144,7 @@ static void CONTROLLER_state_ready(void)
 		}
 		else
 		{
-			printf("State ready. Error\r\n");
+			//printf("State ready. Error\r\n");
 			error = INITIAL_ERROR;
 			state = FAILED;
 		}
@@ -158,7 +164,7 @@ static void CONTROLLER_state_read_prog_init(void)
 {
 	if(PacketManager_available())
 	{
-		printf("State read prog init. PacketManager available.\r\n");
+		//printf("State read prog init. PacketManager available.\r\n");
 		Packet mcu_packet = PacketManager_get_packet();
 
 		if(programmer_type == PROG_AVR)
@@ -295,10 +301,17 @@ static void CONTROLLER_state_read_mem(void)
 	{
 		AvrReadMemData mem_data = AVRFlasher_get_read_mem_data(read_mem_params);
 		Packet memory_packet = AVRFlasher_read_mem(mem_data);
-		ESP8266_SendPacket(memory_packet);
+
+		if(!ESP8266_SendPacket(memory_packet))
+		{
+			printf("Failed to send memory packet. Usart overflow\r\n");
+		}
 
 		PacketManager_free(memory_packet);
+		state = READ_CMD;
 	}
+
+	PacketManager_free(read_mem_params);
 }
 
 

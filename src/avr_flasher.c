@@ -254,15 +254,13 @@ AvrProgMemData	AVRFlasher_get_prog_mem_data(Packet packet)
  */
 AvrReadMemData	AVRFlasher_get_read_mem_data(Packet packet)
 {
-	printf("Getting read mem data\r\n");
 	AvrReadMemData mem_data;
+
 
 	mem_data.start_address = (packet.data[0] << 24) | (packet.data[1] << 16) | (packet.data[2] << 8) |
 			(packet.data[3]);
 	mem_data.bytes_to_read = (packet.data[4] << 24) | (packet.data[5] << 16) | (packet.data[6] << 8) |
 			(packet.data[7]);
-
-	printf("Got read mem data\r\n");
 
 	return mem_data;
 }
@@ -408,6 +406,9 @@ bool AVRFlasher_prog_eeprom_mem(AvrProgMemData prog_data)
 Packet AVRFlasher_read_mem(AvrReadMemData mem_data)
 {
 	printf("Begin reading memory\r\n");
+	printf("Start address 0x%08lx\r\n", mem_data.start_address);
+	printf("Bytes to read %" PRIu32 "\r\n", mem_data.bytes_to_read);
+
 	uint32_t address = mem_data.start_address;
 
 	uint8_t answer[mem_data.bytes_to_read];
@@ -416,7 +417,7 @@ Packet AVRFlasher_read_mem(AvrReadMemData mem_data)
 	uint8_t cmd[AVR_CMD_SIZE];
 	uint8_t res[AVR_CMD_SIZE];
 
-	for(uint8_t i=0; i<mem_data.bytes_to_read; i+=2)
+	for(uint32_t i=0; i<mem_data.bytes_to_read; i+=2)
 	{
 		AVRFlasher_create_memory_cmd(mcu_info.flash_read_hi_pattern, mcu_info.flash_read_hi_len,
 				address, 0, cmd);
