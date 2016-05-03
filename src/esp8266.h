@@ -43,6 +43,7 @@ void 		ESP8266_LoadNetworkData(void);
 
 uint32_t 	ESP8266_available(void);
 uint8_t  	ESP8266_read(void);
+bool 		ESP8266_read_arr(uint8_t *buf, uint32_t len);
 void		ESP8266_flush_rx(void);
 void		ESP8266_flush_tx(void);
 

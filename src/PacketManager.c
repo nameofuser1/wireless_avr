@@ -85,11 +85,13 @@ void PacketManager_init(void)
  */
 bool PacketManager_parse(void)
 {
-	if(ESP8266_available() > 0)
+	uint32_t available = ESP8266_available();
+
+	if(available > 0)
 	{
 		if(parsing_packet_length == 0)
 		{
-			if(ESP8266_available() >= 2)
+			if(available >= 2)
 			{
 				parsing_buf[parsing_len++] = ESP8266_read();
 				parsing_buf[parsing_len++] = ESP8266_read();
@@ -97,6 +99,7 @@ bool PacketManager_parse(void)
 				parsing_packet_length |= (parsing_buf[0] << 8) & 0xFF00;
 				parsing_packet_length |= (parsing_buf[1] & 0xFF);
 
+				available -= 2;
 				//printf("Got packet length: %" PRIu16 "\r\n", parsing_packet_length);
 			}
 			else
@@ -107,9 +110,10 @@ bool PacketManager_parse(void)
 
 		if(parsing_packet_type == NONE_PACKET)
 		{
-			if(ESP8266_available() > 0)
+			if(available > 0)
 			{
 				uint8_t type_byte = ESP8266_read();
+				available--;
 				parsing_buf[parsing_len++] = type_byte;
 
 				switch(type_byte)
@@ -170,9 +174,10 @@ bool PacketManager_parse(void)
 		}
 
 
-		while((ESP8266_available() > 0) && (parsing_len < parsing_packet_length))
+		if((available > 0) && (parsing_len < parsing_packet_length))
 		{
-			parsing_buf[parsing_len++] = ESP8266_read();
+			ESP8266_read_arr(&(parsing_buf[parsing_len]), available);
+			parsing_len += available;
 		}
 
 		//printf("Got %" PRIu16 " bytes\r\n", parsing_len);

@@ -7,6 +7,7 @@
 
 #include <periph/usart3.h>
 #include <stdio.h>
+#include <string.h>
 #include "soft_timers/SoftwareTimer.h"
 #include "soft_timers/SoftwareTimer2.h"
 
@@ -111,7 +112,43 @@ uint8_t USART3_read(void)
 
 		return byte;
 	}
+
 	return 0;
+}
+
+
+/*
+ * Optimized reading of array
+ */
+bool USART3_read_arr(uint8_t *buf, uint32_t len)
+{
+	if(usart3_rx_counter < len || len > USART3_RX_BUF_SIZE)
+	{
+		return false;
+	}
+
+	uint32_t write_offset = 0;
+	uint32_t bytes_to_read = len;
+	uint32_t index = bytes_to_read + usart3_rx_rd_pointer;
+
+	if(index > USART3_RX_BUF_SIZE-1)
+	{
+		uint32_t bytes_until_buffer_end = index - (USART3_RX_BUF_SIZE-1);
+		memcpy(buf, &(usart3_rx_buffer[usart3_rx_rd_pointer]), bytes_until_buffer_end);
+		write_offset = bytes_until_buffer_end;
+
+		usart3_rx_rd_pointer = 0;
+		bytes_to_read -= bytes_until_buffer_end;
+	}
+
+	memcpy(&(buf[write_offset]), &(usart3_rx_buffer[usart3_rx_rd_pointer]), bytes_to_read);
+	usart3_rx_rd_pointer += bytes_to_read;
+
+	NVIC_DisableIRQ(USART3_IRQn);
+	usart3_rx_counter -= len;
+	NVIC_EnableIRQ(USART3_IRQn);
+
+	return true;
 }
 
 

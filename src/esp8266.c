@@ -59,20 +59,6 @@ bool ESP8266_SendPacket(Packet packet)
 {
 	if(packet.type != NONE_PACKET)
 	{
-		/*
-		if(packet.data != last_packet.data)
-		{
-			if(last_packet.data != NULL)
-			{
-				free(last_packet.data);
-			}
-
-			last_packet.data = (uint8_t*)malloc(sizeof(uint8_t)*packet.data_length);
-			memcpy(last_packet.data, packet.data, packet.data_length);
-			last_packet.data_length = packet.data_length;
-		}
-		*/
-
 		USART3_tx_array(packet.data, packet.data_length);
 
 		return true;
@@ -158,6 +144,12 @@ uint32_t ESP8266_available(void)
 uint8_t ESP8266_read(void)
 {
 	return USART3_read();
+}
+
+
+bool ESP8266_read_arr(uint8_t *buf, uint32_t len)
+{
+	return USART3_read_arr(buf, len);
 }
 
 
