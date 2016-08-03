@@ -11,13 +11,14 @@
 #include "soft_timers/SoftwareTimer.h"
 #include "soft_timers/SoftwareTimer2.h"
 #include <periph/spi.h>
+#include <stm32f10x.h>
 #include <inttypes.h>
 
 #define FLASH_MEMORY_BYTE 	0x00
 #define EEPROM_MEMORY_BYTE	0x01
 
 #define PGM_ENABLE_RETRIES		30
-#define PGM_ENABLE_DELAY_MS		4
+#define PGM_ENABLE_DELAY_MS		5
 
 #define DELAY_AFTER_RESET_MS	20
 
@@ -25,6 +26,8 @@ static void
 AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len, uint32_t addr, uint8_t input, uint8_t *cmd);
 
 static AvrMemoryType AVRFlasher_get_memory_type(uint8_t byte);
+//static void pull_sck_up();
+//static void pull_sck_down();
 
 static AvrMcuData mcu_info;
 static bool initialized = false;
@@ -43,7 +46,6 @@ void AVRFlasher_init(AvrMcuData data)
 	SPI1_enable();
 
 	initialized = true;
-
 }
 
 /*
@@ -63,7 +65,6 @@ void AVRFlasher_stop(void)
 		free(mcu_info.flash_read_lo_pattern);
 		initialized = false;
 	}
-
 }
 
 
@@ -449,23 +450,28 @@ Packet AVRFlasher_pgm_enable(void)
 	uint8_t res[AVR_CMD_SIZE];
 	uint8_t success[1] = {0};
 
+	AVRFlasher_reset_enable();
+	SoftwareTimer_delay_ms(&soft_timer2, DELAY_AFTER_RESET_MS);
+
 	for(uint32_t i=0; i<PGM_ENABLE_RETRIES; i++)
 	{
-		AVRFlasher_reset_enable();
-		SoftwareTimer_delay_ms(&soft_timer2, DELAY_AFTER_RESET_MS);
-
 		AVRFlasher_send_command(mcu_info.pgm_enable, AVR_CMD_SIZE, res);
 
 		if(res[2] == mcu_info.pgm_enable[1])
 		{
-			printf("Successfully entered programming mode\r\n");
+			printf("Successfully entered programming mode. %" PRIu32 " retries\r\n", i+1);
 			success[0] = 1;
 			break;
 		}
 		else
 		{
 			AVRFlasher_reset_disable();
-			SoftwareTimer_delay_ms(&soft_timer2, PGM_ENABLE_DELAY_MS);
+			//SPI1_disable();
+			//pull_sck_up();
+			SoftwareTimer_delay_ms(&soft_timer2, DELAY_AFTER_RESET_MS);
+			//pull_sck_down();
+			//SPI1_enable();
+			AVRFlasher_reset_enable();
 		}
 	}
 
@@ -564,3 +570,27 @@ static AvrMemoryType AVRFlasher_get_memory_type(uint8_t byte)
 
 	return MEMORY_ERR;
 }
+
+
+/*
+static void pull_sck_up() {
+	GPIOA->CRL &= ~GPIO_CRL_CNF5;
+	GPIOA->CRL &= ~GPIO_CRL_MODE5;
+	GPIOA->CRL |= GPIO_CRL_MODE5_1;
+
+	GPIOA->BSRR |= GPIO_BSRR_BS5;
+}
+
+
+static void pull_sck_down() {
+	GPIOA->BRR |= GPIO_BRR_BR5;
+
+	PA5. SCK alternate push-pull 50MHz
+	GPIOA->CRL &= ~GPIO_CRL_CNF5;
+	GPIOA->CRL |= GPIO_CRL_CNF5_1;
+	GPIOA->CRL |= GPIO_CRL_MODE5;
+}
+*/
+
+
+

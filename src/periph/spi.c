@@ -25,8 +25,29 @@ static uint8_t tx_rd_pointer = 0;
 
 void SPI1_init(void)
 {
+	/* PA5. SCK alternate push-pull 50MHz */
+	GPIOA->CRL &= ~GPIO_CRL_CNF5;
+	GPIOA->CRL |= GPIO_CRL_CNF5_1;
+	GPIOA->CRL |= GPIO_CRL_MODE5;
+	GPIOA->BRR |= GPIO_BRR_BR5;
+
+	/* PA7. MOSI alternate push-pull 50MHz */
+	GPIOA->CRL &= ~GPIO_CRL_CNF7;
+	GPIOA->CRL |= GPIO_CRL_CNF7_1;
+	GPIOA->CRL |= GPIO_CRL_MODE7;
+
+	/* PA4. NSS alternate push-pull 50MHz */
+	GPIOA->CRL &= ~GPIO_CRL_CNF4;
+	GPIOA->CRL |= GPIO_CRL_CNF4_1;
+	GPIOA->CRL |= GPIO_CRL_MODE4;
+
+	/* PA6. MISO input floating */
+	GPIOA->CRL &= ~GPIO_CRL_CNF6;
+	GPIOA->CRL &= ~GPIO_CRL_MODE6;
+	GPIOA->CRL |= GPIO_CRL_CNF6_0;
+
 	SPI_InitTypeDef spi;
-	spi.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_16;
+	spi.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_64;
 	spi.SPI_Mode = SPI_Mode_Master;
 	spi.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
 	spi.SPI_FirstBit = SPI_FirstBit_MSB;
@@ -36,7 +57,6 @@ void SPI1_init(void)
 	spi.SPI_CPHA = SPI_CPHA_1Edge;
 	SPI_NSSInternalSoftwareConfig(SPI1, SPI_NSSInternalSoft_Set);
 	SPI_Init(SPI1, &spi);
-	SPI_Cmd(SPI1, ENABLE);
 
 	//SPI->CR2 |= SPI_CR2_TXEIE;		//TX buffer empty interrupt
 	//SPI->CR2 |= SPI_CR2_RXNEIE;		//RX buffer not empty interrupt
@@ -45,18 +65,16 @@ void SPI1_init(void)
 
 void SPI1_enable(void)
 {
-	SPI1->CR1 |= SPI_CR1_SPE;
+	SPI_Cmd(SPI1, ENABLE);
 }
 
 
 void SPI1_disable(void)
 {
+	while((SPI1->SR & SPI_SR_BSY));
 	SPI_I2S_ITConfig(SPI1, SPI_I2S_IT_RXNE, DISABLE);
 	SPI_I2S_ITConfig(SPI1, SPI_I2S_IT_TXE, DISABLE);
-	//while(!(SPI->SR & SPI_SR_RXNE));
-	//while(!(SPI->SR & SPI_SR_TXE));
-	while((SPI1->SR & SPI_SR_BSY));
-	SPI1->CR1 &= ~SPI_CR1_SPE;
+	SPI_Cmd(SPI1, DISABLE);
 }
 
 
