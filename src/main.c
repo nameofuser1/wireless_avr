@@ -21,7 +21,20 @@ int main(void)
 	__enable_fault_irq();
 	__enable_irq();
 
+
 	gpio_init();
+
+	SoftwareTimer2_init();
+	SoftwareTimer2_set_duration(1);	//1 ms
+	SoftwareTimer2_start();
+
+	while(true) {
+		SoftwareTimer_delay_ms(&soft_timer2, 25);
+		GPIOA->BSRR |= GPIO_BSRR_BR8;
+		SoftwareTimer_delay_ms(&soft_timer2, 25);
+		GPIOA->BSRR |= GPIO_BSRR_BS8;
+	}
+
 
 	USART1_init();
 	USART_Cmd(USART1, ENABLE);
@@ -117,26 +130,6 @@ static void gpio_init(void)
 	GPIOA->CRH &= ~GPIO_CRH_CNF8;
 	GPIOA->CRH |= GPIO_CRH_MODE8_1;
 	GPIOA->BSRR |= GPIO_BSRR_BS8;
-
-	/* SCK alternate push-pull 50MHz */
-	GPIOA->CRL &= ~GPIO_CRL_CNF5;
-	GPIOA->CRL |= GPIO_CRL_CNF5_1;
-	GPIOA->CRL |= GPIO_CRL_MODE5;
-
-	/* MOSI alternate push-pull 50MHz */
-	GPIOA->CRL &= ~GPIO_CRL_CNF7;
-	GPIOA->CRL |= GPIO_CRL_CNF7_1;
-	GPIOA->CRL |= GPIO_CRL_MODE7;
-
-	/* NSS alternate push-pull 50MHz */
-	GPIOA->CRL &= ~GPIO_CRL_CNF4;
-	GPIOA->CRL |= GPIO_CRL_CNF4_1;
-	GPIOA->CRL |= GPIO_CRL_MODE4;
-
-	/* MISO input floating */
-	GPIOA->CRL &= ~GPIO_CRL_CNF6;
-	GPIOA->CRL &= ~GPIO_CRL_MODE6;
-	GPIOA->CRL |= GPIO_CRL_CNF6_0;
 
 	/*
 	 * External interrupt on line 4

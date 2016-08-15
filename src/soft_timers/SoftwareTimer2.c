@@ -11,9 +11,9 @@ void SoftwareTimer2_init(void)
 {
 	RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
 	NVIC_EnableIRQ(TIM2_IRQn);
-	TIM2->PSC = TIMER2_PRESCALER;				//clock prescaler
-	TIM2->DIER |= TIM_DIER_UIE;					//update interrupt enable
-	TIM2->CR1 &= ~TIM_CR1_OPM;					//periodic mode
+	TIM2->PSC = TIMER2_PRESCALER;					//clock prescaler
+	TIM2->DIER |= TIM_DIER_UIE;						//update interrupt enable
+	TIM2->CR1 &= (~TIM_CR1_OPM | TIM_CR1_ARPE);		//periodic mode
 }
 
 
