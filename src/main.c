@@ -28,14 +28,6 @@ int main(void)
 	SoftwareTimer2_set_duration(1);	//1 ms
 	SoftwareTimer2_start();
 
-	while(true) {
-		SoftwareTimer_delay_ms(&soft_timer2, 25);
-		GPIOA->BSRR |= GPIO_BSRR_BR8;
-		SoftwareTimer_delay_ms(&soft_timer2, 25);
-		GPIOA->BSRR |= GPIO_BSRR_BS8;
-	}
-
-
 	USART1_init();
 	USART_Cmd(USART1, ENABLE);
 	NVIC_EnableIRQ(USART1_IRQn);
