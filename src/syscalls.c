@@ -8,14 +8,17 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "periph/usart.h"
-#include "periph/usart1.h"
+#include <Driver_USART.h>
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 #undef errno
 extern int errno;
 extern int  _end;
+
+#define PRINTF_DRIVER ARM_Driver_USART1
+extern ARM_DRIVER_USART PRINTF_DRIVER;
+
 
 /*This function is used for handle heap option*/
 __attribute__ ((used))
@@ -94,7 +97,7 @@ int _write(int file, char *ptr, int len)
 
 #if 1
      (void)file;
-     USART_SendArray(USART1, (uint8_t*)ptr, (uint32_t)len);
+     while(PRINTF_DRIVER->Send((void*)ptr, len) == ARM_DRIVER_ERROR_BUSY);
 #endif
 
     return len;
