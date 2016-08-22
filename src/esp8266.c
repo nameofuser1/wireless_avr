@@ -4,17 +4,15 @@
  *  Created on: 17 февр. 2016 г.
  *      Author: kripton
  */
-#include "esp8266.h"
-#include "periph/usart1.h"
-#include "periph/usart3.h"
-#include "PacketManager.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
 
-//static Packet last_packet;
+#include "esp8266.h"
+#include "PacketManager.h"
+#include <Driver_USART.h>
 
 #define ESP_STATUS_GPIO 		GPIOB
 #define ESP_STATUS_GPIO_IDR		GPIO_IDR_IDR4
@@ -26,16 +24,37 @@
 #define ESP_INFO_LOAD_GPIO_ENABLE()		(ESP_INFO_LOAD_GPIO->BSRR |= ESP_INFO_LOAD_GPIO_BS)
 #define ESP_INFO_LOAD_GPIO_DISABLE()	(ESP_INFO_LOAD_GPIO->BSRR |= ESP_INFO_LOAD_GPIO_BR)
 
+#define ESP_Driver_Usart Driver_USART3
+extern ARM_DRIVER_USART ESP_Driver_Usart;
+
+#define ESP_USART_BAUDRATE 115200
+
+
+static void usart_event_handler(ARM_USART_SignalEvent_t event)
+{
+	if(event & ARM_USART_EVENT_SEND_COMPLETE)
+	{
+
+	}
+
+
+}
 
 void ESP8266_init(void)
 {
-	USART3_init();
+	ARM_USART_SignalEvent_t events =	(ARM_USART_EVENT_SEND_COMPLETE |
+										 ARM_USART_EVENT_RECEIVE_COMPLETE |
+										 ARM_USART_EVENT_RX_TIMEOUT);
+
+	ESP_Driver_Usart->Initialize(usart_event_handler);
+	ESP_Driver_Usart->Control(ARM_USART_MODE_ASYNCHRONOUS, ESP_USART_BAUDRATE);
+	ESP_Driver_Usart->Control(ARM_USART_CONTROL_TX | ARM_USART_CONTROL_RX, 1);
 }
 
 
 void ESP8266_DeInit(void)
 {
-	USART3_deinit();
+	ESP_Driver_Usart->Uninitialize();
 }
 
 
@@ -59,8 +78,7 @@ bool ESP8266_SendPacket(Packet packet)
 {
 	if(packet.type != NONE_PACKET)
 	{
-		USART3_tx_array(packet.data, packet.data_length);
-
+		ESP_Driver_Usart->Send((void*)packet.data, packet.data_length);
 		return true;
 	}
 
@@ -131,37 +149,31 @@ void ESP8266_LoadNetworkData(void)
 
 bool ESP8266_TransmissionStatus(void)
 {
-	return USART3_transmission_status();
+	return ESP_Driver_Usart->GetStatus()->tx_busy;
 }
 
 
 uint32_t ESP8266_available(void)
 {
-	return USART3_available();
-}
-
-
-uint8_t ESP8266_read(void)
-{
-	return USART3_read();
+	return ESP_Driver_Usart->GetRxCount();
 }
 
 
 bool ESP8266_read_arr(uint8_t *buf, uint32_t len)
 {
-	return USART3_read_arr(buf, len);
+	return ESP_Driver_Usart->Receive((void*)buf, len);
 }
 
 
 void ESP8266_flush_rx(void)
 {
-	USART3_flush_rx();
+	__NOP();
 }
 
 
 void ESP8266_flush_tx(void)
 {
-	USART3_flush_tx();
+	__NOP();
 }
 
 
