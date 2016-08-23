@@ -27,6 +27,11 @@ typedef struct _packet {
 } *Packet;
 
 
+#define PACKET_WRONG_CRC 			0
+#define PACKET_MEMORY_ERROR 		1
+#define PACKET_WRONG_PACKET_LENGTH	2
+
+
 void		PacketManager_init(void);
 bool 		PacketManager_parse(void);
 bool 		PacketManager_available(void);

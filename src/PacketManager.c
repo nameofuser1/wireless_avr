@@ -5,9 +5,11 @@
  *      Author: kripton
  */
 
-#include <crc32.h>
+#include "crc32.h"
 #include "PacketManager.h"
 #include "esp8266.h"
+#include "system.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,18 +59,7 @@ static char* packet_names[PACKETS_TYPES_NUMBER] =
 	"Usart", 	"UsartInit", 	"AvrProgInit",  "PGM enable", 	"ACK", 		"Memory",  "LOG",
 };
 
-
 static bool PacketManager_check_crc(uint8_t *data, uint32_t len);
-
-static Packet 	packets[PACKETS_BUF_SIZE];
-static uint8_t 	packets_available = 0;
-static uint8_t 	packets_wr_pointer = 0;
-static uint8_t	packets_rd_pointer = 0;
-
-static uint8_t 		parsing_buf[PARSING_BUF_SIZE];
-static PacketType	parsing_packet_type = NONE_PACKET;
-static uint16_t 	parsing_packet_length = 0;
-static uint16_t 	parsing_len = 0;
 
 
 void PacketManager_init(void)
@@ -83,125 +74,81 @@ void PacketManager_init(void)
  * Be sure that array length is packet size scalable
  * ****************************************************
  */
-bool PacketManager_parse(void)
+Packet PacketManager_parse(uint8_t *packet_buffer, uint32_t data_len)
 {
-	uint32_t available = ESP8266_available();
-
-	if(available > 0)
-	{
-		if(parsing_packet_length == 0)
+		uint32_t packet_len = 0;
+		for(uint8_t i=0; i<SIZE_FIELD_SIZE; i++)
 		{
-			if(available >= 2)
-			{
-				parsing_buf[parsing_len++] = ESP8266_read();
-				parsing_buf[parsing_len++] = ESP8266_read();
-
-				parsing_packet_length |= (parsing_buf[0] << 8) & 0xFF00;
-				parsing_packet_length |= (parsing_buf[1] & 0xFF);
-
-				available -= 2;
-				//printf("Got packet length: %" PRIu16 "\r\n", parsing_packet_length);
-			}
-			else
-			{
-				return true;
-			}
+			packet_len |= ((packet_buffer[i]) << 8*(SIZE_FIELD_SIZE - i - 1));
 		}
 
-		if(parsing_packet_type == NONE_PACKET)
+		PacketType packet_type = NONE_PACKET;
+		uint8_t type_byte = packet_buffer[SIZE_FIELD_SIZE];	// next byte after size field
+
+		switch(type_byte)
 		{
-			if(available > 0)
-			{
-				uint8_t type_byte = ESP8266_read();
-				available--;
-				parsing_buf[parsing_len++] = type_byte;
+			case PROG_INIT_BYTE:
+				packet_type = PROG_INIT_PACKET;
+				break;
 
-				switch(type_byte)
-				{
-					case PROG_INIT_BYTE:
-						parsing_packet_type = PROG_INIT_PACKET;
-						break;
+			case AVR_PROG_INIT_BYTE:
+				packet_type = AVR_PROG_INIT_PACKET;
+				break;
 
-					case AVR_PROG_INIT_BYTE:
-						parsing_packet_type = AVR_PROG_INIT_PACKET;
-						break;
+			case STOP_PACKET_BYTE:
+				packet_type = STOP_PROGRAMMER_PACKET;
+				break;
 
-					case STOP_PACKET_BYTE:
-						parsing_packet_type = STOP_PROGRAMMER_PACKET;
-						break;
+			case CMD_PACKET_BYTE:
+				packet_type = CMD_PACKET;
+				break;
 
-					case CMD_PACKET_BYTE:
-						parsing_packet_type = CMD_PACKET;
-						break;
+			case RESET_PACKET_BYTE:
+				packet_type = RESET_PACKET;
+				break;
 
-					case RESET_PACKET_BYTE:
-						parsing_packet_type = RESET_PACKET;
-						break;
+			case PROG_MEM_PACKET_BYTE:
+				packet_type = PROG_MEM_PACKET;
+				break;
 
-					case PROG_MEM_PACKET_BYTE:
-						parsing_packet_type = PROG_MEM_PACKET;
-						break;
+			case READ_MEM_PACKET_BYTE:
+				packet_type = READ_MEM_PACKET;
+				break;
 
-					case READ_MEM_PACKET_BYTE:
-						parsing_packet_type = READ_MEM_PACKET;
-						break;
+			case USART_INIT_PACKET_BYTE:
+				packet_type = USART_INIT_PACKET;
+				break;
 
-					case USART_INIT_PACKET_BYTE:
-						parsing_packet_type = USART_INIT_PACKET;
-						break;
+			case PGM_ENABLE_PACKET_BYTE:
+				packet_type = PGM_ENABLE_PACKET;
+				break;
 
-					case PGM_ENABLE_PACKET_BYTE:
-						parsing_packet_type = PGM_ENABLE_PACKET;
-						break;
+			case ERROR_PACKET_BYTE:
+				packet_type = ERROR_PACKET;
+				break;
 
-					case ERROR_PACKET_BYTE:
-						parsing_packet_type = ERROR_PACKET;
-						break;
+			case LOG_PACKET_BYTE:
+				packet_type = LOG_PACKET;
+				break;
 
-					case LOG_PACKET_BYTE:
-						parsing_packet_type = LOG_PACKET;
-						break;
-
-					default:
-						printf("Got wrong packet byte: 0x%02x %c\r\n", type_byte, type_byte);
-						return false;
-				}
-			}
-			else
-			{
-				return true;
-			}
-		}
-
-
-		if((available > 0) && (parsing_len < parsing_packet_length))
-		{
-			ESP8266_read_arr(&(parsing_buf[parsing_len]), available);
-			parsing_len += available;
-		}
-
-		//printf("Got %" PRIu16 " bytes\r\n", parsing_len);
-		if(parsing_len == parsing_packet_length)
-		{
-			if(packets_available+1 > PACKETS_BUF_SIZE)
-			{
+			default:
+				printf("Got wrong packet byte: 0x%02x %c\r\n", type_byte, type_byte);
 				return false;
-			}
+		}
 
-			if(parsing_packet_type != LOG_PACKET)
+			if(packet_type != LOG_PACKET)
 			{
-				if(!PacketManager_check_crc(parsing_buf, parsing_packet_length))
+				if(!PacketManager_check_crc(packet_buffer, data_len))
 				{
-					printf("CRC doesn't match. Packet %s\r\n", packet_names[parsing_packet_type]);
-					ESP8266_SendError(WRONG_PACKET_BYTE);
+					return PacketManager_error_packet(PACKET_WRONG_CRC);
 				}
 
 
-				if(parsing_packet_type == ERROR_PACKET && parsing_buf[3] == WRONG_PACKET_BYTE)
+				if(packet_type == ERROR_PACKET && parsing_buf[3] == WRONG_PACKET_BYTE)
 				{
 					ESP8266_SendLastPacket();
 				}
-				else if(parsing_packet_type != LOG_PACKET)
+				else if(packet_type != LOG_PACKET)
 				{
 					uint32_t data_length =  parsing_packet_length - PACKET_RESERVED_BYTES;
 					uint8_t data_offset = PACKET_HEADER_SIZE;
@@ -210,7 +157,7 @@ bool PacketManager_parse(void)
 					memcpy(packet_data, parsing_buf+data_offset, data_length);
 
 					Packet packet = {
-							.type = parsing_packet_type,
+							.type = packet_type,
 							.data_length = parsing_packet_length - PACKET_RESERVED_BYTES,
 							.data = packet_data
 					};
@@ -232,7 +179,7 @@ bool PacketManager_parse(void)
 
 			parsing_packet_length = 0;
 			parsing_len = 0;
-			parsing_packet_type = NONE_PACKET;
+			packet_type = NONE_PACKET;
 		}
 		else if(!ESP8266_TransmissionStatus())
 		{
@@ -244,46 +191,6 @@ bool PacketManager_parse(void)
 	}
 
 	return true;
-}
-
-
-bool PacketManager_available(void)
-{
-	return (packets_available > 0);
-}
-
-/*
- * ******************************************
- * Check for available packets first!!!
- * ******************************************
- */
-Packet PacketManager_get_packet(void)
-{
-	Packet packet;
-	if(packets_available > 0)
-	{
-		packet = packets[packets_rd_pointer];
-		packets_rd_pointer = (packets_rd_pointer == PACKETS_BUF_SIZE-1) ? 0 : packets_rd_pointer+1;
-		packets_available--;
-	}
-
-	return packet;
-}
-
-
-/*
- * *************************************
- * Check for available packets first!!!
- * *************************************
- */
-PacketType	PacketManager_next_packet_type(void)
-{
-	if(packets_available > 0)
-	{
-		return packets[packets_rd_pointer]->type;
-	}
-
-	return 0;
 }
 
 
@@ -303,16 +210,10 @@ void PacketManager_free(Packet packet)
 }
 
 
-/*
- * ***************************************
- * Reset all pointers and counter
- * ***************************************
- */
-void PacketManager_clear(void)
+Packet PacketManager_create_error_packet(uint8_t error)
 {
-	packets_available = 0;
-	packets_wr_pointer = 0;
-	packets_rd_pointer = 0;
+	uint8_t data[1] = {error};
+	return PacketManager_create_packet(data, 1, ERROR_PACKET);
 }
 
 
@@ -324,16 +225,36 @@ void PacketManager_clear(void)
 Packet	PacketManager_create_packet(uint8_t *data, uint16_t data_len, PacketType type)
 {
 	Packet packet = (Packet)malloc(sizeof(struct _packet));
+	if(packet == NULL)
+	{
+		critical_error(SYSTEM_ERROR_MEM, "Can't create packet");
+	}
+
 	packet->data_length = data_len + PACKET_RESERVED_BYTES;
 
 	if(packet->data_length > MAX_PACKET_LENGTH)
 	{
-		packet->type = NONE_PACKET;
-		printf("Wrong packet length\r\n");
+		packet->type = ERROR_PACKET;
+		packet->data = (uint8_t*)malloc(sizeof(uint8_t));
+
+		if(packet->data == NULL)
+		{
+			free(packet);
+			critical_error(SYSTEM_ERROR_MEM, "Can't allocate packet data field");
+		}
+
+		packet->data[0] = PACKET_WRONG_PACKET_LENGTH;
 		return packet;
 	}
 
 	packet->data = (uint8_t*)malloc(sizeof(uint8_t) * (packet->data_length));
+
+	if(packet->data == NULL)
+	{
+		free(packet);
+		critical_error(SYSTEM_ERROR_MEM, "Can't allocate packet data field");
+	}
+
 	packet->data[0] = (packet->data_length >> 8) & 0xFF;
 	packet->data[1] = (packet->data_length & 0xFF);
 
