@@ -41,7 +41,7 @@ void CONTROLLER_init(void)
 	SoftwareTimer2_start();
 
 	ESP8266_init();
-	ESP8266_flush_rx();
+	ESP8266_FlushRx();
 	ESP8266_flush_tx();
 
 	actions[READY] = CONTROLLER_state_ready;

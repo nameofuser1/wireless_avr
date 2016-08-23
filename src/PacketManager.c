@@ -238,7 +238,7 @@ bool PacketManager_parse(void)
 		{
 			printf("Missing packet bytes\r\n");
 
-			ESP8266_flush_rx();
+			ESP8266_FlushRx();
 			ESP8266_SendError(WRONG_PACKET_BYTE);
 		}
 	}
