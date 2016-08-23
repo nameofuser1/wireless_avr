@@ -4,13 +4,17 @@
  *  Created on: 17 февр. 2016 г.
  *      Author: kripton
  */
+
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
 
+#include "stm32f10x.h"
 #include "esp8266.h"
+#include "system.h"
+#include "common/Logging.h"
 #include "PacketManager.h"
 #include "common/CircularBuffer.h"
 #include <Driver_USART.h>
@@ -26,18 +30,39 @@
 #define ESP_INFO_LOAD_GPIO_DISABLE()	(ESP_INFO_LOAD_GPIO->BSRR |= ESP_INFO_LOAD_GPIO_BR)
 
 /* Import usart driver */
-#define ESP_Driver_Usart Driver_USART3
+#define ESP_USART_Typedef	USART3
+#define ESP_Driver_Usart 	Driver_USART3
+
 extern ARM_DRIVER_USART ESP_Driver_Usart;
 
 /* USART CONFIG */
 #define ESP_USART_BAUDRATE 115200
 
-/* Buffer size for sending packets */
-#define PACKETS_BUFFER_SIZE 10
+/* Buffer sizes for saving packets */
+#define OUTCOME_PACKETS_BUFFER_SIZE 10
+#define INCOME_PACKETS_BUFFER_SIZE  5
 
-/* Save packets here */
-static CircularBuffer packets_buffer;
+/* Save outcome packets here */
+static CircularBuffer outcome_packets_buffer;
 static Packet processing_packet;
+
+/* Save income packets here */
+static CircularBuffer income_packets_buffer;
+
+/* Buffers for reading */
+#define HEADER_BUFFER_SIZE 	2
+#define BODY_BUFFER_SIZE 	512
+
+static uint8_t header_buffer[HEADER_BUFFER_SIZE];
+static uint8_t body_buffer[BODY_BUFFER_SIZE];
+
+/* State defines */
+typedef enum 	{ESP_STATE_RECV_HEADERS, ESP_STATE_RECV_BODY} EspState;
+static EspState esp_state = ESP_STATE_RECV_HEADERS;
+
+/* Static methods */
+static void receive_header(void);
+static void receive_body(uint32_t body_len);
 
 
 static void usart_event_handler(ARM_USART_SignalEvent_t event)
@@ -46,41 +71,84 @@ static void usart_event_handler(ARM_USART_SignalEvent_t event)
 	{
 		PacketManager_free(processing_packet);
 
-		if(!CircularBuffer_is_empty(&packets_buffer))
+		if(!CircularBuffer_is_empty(&outcome_packets_buffer))
 		{
-			processing_packet = CircularBuffer_get(&packets_buffer);
-			ESP_Driver_Usart->Send((void*)(processing_packet->data), processing_packet->data_length);
+			processing_packet = CircularBuffer_get(&outcome_packets_buffer);
+
+			if(ESP_Driver_Usart->Send((void*)(processing_packet->data), processing_packet->data_length) != ARM_DRIVER_OK)
+			{
+				critical_error("Can't send packet");
+			}
+		}
+	}
+
+	if(event & ARM_USART_EVENT_RECEIVE_COMPLETE)
+	{
+		if(esp_state == ESP_STATE_RECV_HEADERS)
+		{
+			memcpy(body_buffer, header_buffer, HEADER_BUFFER_SIZE);
+			uint16_t body_len = ((header_buffer[0] << 8) & 0xFF00) | (header_buffer[1] & 0xFF);
+
+			receive_body(body_len);
+			esp_state = ESP_STATE_RECV_BODY;
+		}
+		else
+		{
+			Packet packet = PacketManager_parse(body_buffer);
+
+			if(packet->type == NONE_PACKET)
+			{
+				critical_error("Unknown packet");
+			}
+
+			CircularBuffer_put(&income_packets_buffer, (void*)packet);
+
+			receive_header();
+			esp_state = ESP_STATE_RECV_HEADERS;
 		}
 	}
 
 	if(event & ARM_USART_EVENT_RX_TIMEOUT)
 	{
-
-	}
-
-	if(event & ARM_USART_EVENT_RECEIVE_COMPLETE)
-	{
-
+		if(esp_state == ESP_STATE_RECV_HEADERS)
+		{
+			LOGGING_log("IDLE Line while receiving headers", LOG_DEBUG);
+		}
+		else
+		{
+			critical_error("IDLE Line while receiving packet body");
+		}
 	}
 }
 
-void ESP8266_init(void)
-{
-	ARM_USART_SignalEvent_t events =	(ARM_USART_EVENT_SEND_COMPLETE |
-										 ARM_USART_EVENT_RECEIVE_COMPLETE |
-										 ARM_USART_EVENT_RX_TIMEOUT);
 
+void ESP8266_Init(void)
+{
 	ESP_Driver_Usart->Initialize(usart_event_handler);
 	ESP_Driver_Usart->Control(ARM_USART_MODE_ASYNCHRONOUS, ESP_USART_BAUDRATE);
 	ESP_Driver_Usart->Control(ARM_USART_CONTROL_TX | ARM_USART_CONTROL_RX, 1);
 
-	CircularBuffer_alloc(&packets_buffer, PACKETS_BUFFER_SIZE);
+	if(!CircularBuffer_alloc(&outcome_packets_buffer, OUTCOME_PACKETS_BUFFER_SIZE))
+	{
+		critical_error("Memory error. Can't allocate outcome buffer");
+	}
+
+	if(!CircularBuffer_alloc(&income_packets_buffer, INCOME_PACKETS_BUFFER_SIZE))
+	{
+		critical_error("Memory error. Can't allocate income buffer");
+	}
+
+	/* Starting receiving packets */
+	receive_header();
 }
 
 
 void ESP8266_DeInit(void)
 {
 	ESP_Driver_Usart->Uninitialize();
+
+	CirclularBuffer_free(&outcome_packets_buffer, true);
+	CirclularBuffer_free(&income_packets_buffer, true);
 }
 
 
@@ -104,14 +172,18 @@ bool ESP8266_SendPacket(Packet packet)
 {
 	if(packet->type != NONE_PACKET)
 	{
-		if(CircularBuffer_is_empty(&packets_buffer))
+		if(CircularBuffer_is_empty(&outcome_packets_buffer))
 		{
 			processing_packet = packet;
-			ESP_Driver_Usart->Send((void*)(packet->data), packet->data_length);
+
+			if(ESP_Driver_Usart->Send((void*)(packet->data), packet->data_length) != ARM_DRIVER_OK)
+			{
+				critical_error("Can't send packet.");
+			}
 		}
 		else
 		{
-			CircularBuffer_put(&packets_buffer, packet);
+			CircularBuffer_put(&outcome_packets_buffer, packet);
 		}
 
 		return true;
@@ -143,34 +215,52 @@ bool ESP8266_SendError(uint8_t error)
 }
 
 
-
 bool ESP8266_TransmissionStatus(void)
 {
-	return ESP_Driver_Usart->GetStatus()->tx_busy;
+	return (ESP_Driver_Usart->GetStatus()->tx_busy == 1);
 }
 
 
-uint32_t ESP8266_available(void)
+bool ESP8266_Available(void)
 {
-	return ESP_Driver_Usart->GetRxCount();
+	return (!CircularBuffer_is_empty(&income_packets_buffer));
 }
 
 
-bool ESP8266_read_arr(uint8_t *buf, uint32_t len)
+Packet ESP8266_GetPacket(void)
 {
-	return ESP_Driver_Usart->Receive((void*)buf, len);
+	if(ESP8266_Available())
+	{
+		return (Packet)CircularBuffer_get(&income_packets_buffer);
+	}
+
+	return PacketManager_create_packet(NULL, 0, NONE_PACKET);
 }
 
 
-void ESP8266_flush_rx(void)
+/*
+ * Receiving header.
+ * Disable IDLE line interrupt as we can wait forever.
+ */
+static void receive_header(void)
 {
-	__NOP();
+	if(ESP_Driver_Usart->Receive(header_buffer, HEADER_BUFFER_SIZE) != ARM_DRIVER_OK)
+	{
+		critical_error("Can't receive packet");
+	}
+
+	ESP_USART_Typedef->CR1 &= ~(USART_CR1_IDLEIE);
 }
 
 
-void ESP8266_flush_tx(void)
+/*
+ * Receive packet body
+ */
+static void receive_body(uint32_t body_len)
 {
-	__NOP();
+	if(ESP_Driver_Usart->Receive(body_buffer+HEADER_BUFFER_SIZE, body_len) != ARM_DRIVER_OK)
+	{
+		critical_error("Can't receive buffer");
+	}
 }
-
 
