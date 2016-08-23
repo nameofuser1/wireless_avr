@@ -219,7 +219,7 @@ bool PacketManager_parse(void)
 					packets_wr_pointer = (packets_wr_pointer == PACKETS_BUF_SIZE-1) ? 0 : packets_wr_pointer+1;
 					++packets_available;
 
-					printf("Got %s packet\r\n", packet_names[packet.type]);
+					printf("Got %s packet\r\n", packet_names[packet->type]);
 				}
 
 			}
@@ -280,7 +280,7 @@ PacketType	PacketManager_next_packet_type(void)
 {
 	if(packets_available > 0)
 	{
-		return packets[packets_rd_pointer].type;
+		return packets[packets_rd_pointer]->type;
 	}
 
 	return 0;
@@ -294,10 +294,12 @@ PacketType	PacketManager_next_packet_type(void)
  */
 void PacketManager_free(Packet packet)
 {
-	if(packet.type != ACK_PACKET)
+	if(packet->type != ACK_PACKET)
 	{
-		free(packet.data);
+		free(packet->data);
 	}
+
+	free(packet);
 }
 
 
@@ -321,65 +323,65 @@ void PacketManager_clear(void)
  */
 Packet	PacketManager_create_packet(uint8_t *data, uint16_t data_len, PacketType type)
 {
-	Packet packet;
-	packet.data_length = data_len + PACKET_RESERVED_BYTES;
+	Packet packet = (Packet)malloc(sizeof(struct _packet));
+	packet->data_length = data_len + PACKET_RESERVED_BYTES;
 
-	if(packet.data_length > MAX_PACKET_LENGTH)
+	if(packet->data_length > MAX_PACKET_LENGTH)
 	{
-		packet.type = NONE_PACKET;
+		packet->type = NONE_PACKET;
 		printf("Wrong packet length\r\n");
 		return packet;
 	}
 
-	packet.data = (uint8_t*)malloc(sizeof(uint8_t) * (packet.data_length));
-	packet.data[0] = (packet.data_length >> 8) & 0xFF;
-	packet.data[1] = (packet.data_length & 0xFF);
+	packet->data = (uint8_t*)malloc(sizeof(uint8_t) * (packet->data_length));
+	packet->data[0] = (packet->data_length >> 8) & 0xFF;
+	packet->data[1] = (packet->data_length & 0xFF);
 
 	switch(type)
 	{
 		case CMD_PACKET:
-			packet.type = CMD_PACKET;
-			packet.data[2] = CMD_PACKET_BYTE;
+			packet->type = CMD_PACKET;
+			packet->data[2] = CMD_PACKET_BYTE;
 			break;
 
 		case ERROR_PACKET:
-			packet.type = ERROR_PACKET;
-			packet.data[2] = ERROR_PACKET_BYTE;
+			packet->type = ERROR_PACKET;
+			packet->data[2] = ERROR_PACKET_BYTE;
 			break;
 
 		case USART_PACKET:
-			packet.type = USART_PACKET;
-			packet.data[2] = USART_PACKET_BYTE;
+			packet->type = USART_PACKET;
+			packet->data[2] = USART_PACKET_BYTE;
 			break;
 
 		case ACK_PACKET:
-			packet.type = ACK_PACKET;
-			packet.data[2] = ACK_PACKET_BYTE;
+			packet->type = ACK_PACKET;
+			packet->data[2] = ACK_PACKET_BYTE;
 			break;
 
 		case MEMORY_PACKET:
-			packet.type = MEMORY_PACKET;
-			packet.data[2] = MEMORY_PACKET_BYTE;
+			packet->type = MEMORY_PACKET;
+			packet->data[2] = MEMORY_PACKET_BYTE;
 			break;
 
 		default:
-			packet.type = NONE_PACKET;
+			packet->type = NONE_PACKET;
 			break;
 	}
 
 	if(data_len != 0)
 	{
 		uint32_t data_offset = PACKET_HEADER_SIZE;
-		memcpy((packet.data + data_offset), data, data_len*sizeof(uint8_t));
+		memcpy((packet->data + data_offset), data, data_len*sizeof(uint8_t));
 	}
 
-	uint32_t crc_offset = packet.data_length - CRC_FIELD_SIZE;
-	uint32_t crc = crc32_native(packet.data, data_len+PACKET_HEADER_SIZE);
+	uint32_t crc_offset = packet->data_length - CRC_FIELD_SIZE;
+	uint32_t crc = crc32_native(packet->data, data_len+PACKET_HEADER_SIZE);
 
 	/* If using memcpy have to use htonl as arm has little-endian */
 	for(uint32_t i=0; i<CRC_FIELD_SIZE; i++)
 	{
-		packet.data[crc_offset+i] = (crc >> (24-i*8)) & 0xFF;
+		packet->data[crc_offset+i] = (crc >> (24-i*8)) & 0xFF;
 	}
 
 	return packet;

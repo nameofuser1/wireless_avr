@@ -36,10 +36,6 @@ bool ESP8266_SendLastPacket(void);
  */
 bool ESP8266_TransmissionStatus(void);
 
-/*
- * Loads ssid info into ESP
- */
-void 		ESP8266_LoadNetworkData(void);
 
 uint32_t 	ESP8266_available(void);
 uint8_t  	ESP8266_read(void);
