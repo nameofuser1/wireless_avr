@@ -235,7 +235,7 @@ static void CONTROLLER_state_send_cmd(void)
 		uint8_t res[AVR_CMD_SIZE];
 		if(AVRFlasher_send_command(cmd_packet.data, cmd_packet.data_length, res))
 		{
-			Packet result_packet = PacketManager_create_packet(res, AVR_CMD_SIZE, CMD_PACKET);
+			Packet result_packet = PacketManager_CreatePacket(res, AVR_CMD_SIZE, CMD_PACKET);
 			ESP8266_SendPacket(result_packet);
 
 			PacketManager_free(result_packet);

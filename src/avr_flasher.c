@@ -434,7 +434,7 @@ Packet AVRFlasher_read_mem(AvrReadMemData mem_data)
 	}
 
 	printf("Successfully read memory\r\n");
-	return PacketManager_create_packet(answer, mem_data.bytes_to_read, MEMORY_PACKET);
+	return PacketManager_CreatePacket(answer, mem_data.bytes_to_read, MEMORY_PACKET);
 }
 
 
@@ -475,7 +475,7 @@ Packet AVRFlasher_pgm_enable(void)
 		}
 	}
 
-	return PacketManager_create_packet(success, 1, CMD_PACKET);
+	return PacketManager_CreatePacket(success, 1, CMD_PACKET);
 }
 
 

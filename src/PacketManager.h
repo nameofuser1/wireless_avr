@@ -23,13 +23,15 @@ typedef struct _packet {
 	PacketType 	type;
 	uint16_t 	data_length;
 	uint8_t 	*data;
+	uint32_t	crc;
 
 } *Packet;
 
 
-#define PACKET_WRONG_CRC 			0
-#define PACKET_MEMORY_ERROR 		1
-#define PACKET_WRONG_PACKET_LENGTH	2
+#define PACKET_CRC_ERROR 		0
+#define PACKET_MEMORY_ERROR 	1
+#define PACKET_LENGTH_ERROR		2
+#define PACKET_TYPE_ERROR		3
 
 
 void		PacketManager_init(void);
@@ -39,7 +41,7 @@ Packet		PacketManager_get_packet(void);
 PacketType	PacketManager_next_packet_type(void);
 void		PacketManager_free(Packet packet);
 void		PacketManager_clear(void);
-Packet		PacketManager_create_packet(uint8_t* data, uint16_t data_len, PacketType type);
+Packet		PacketManager_CreatePacket(uint8_t* data, uint16_t data_len, PacketType type);
 
 
 
