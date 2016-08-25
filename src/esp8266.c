@@ -73,9 +73,9 @@ static void usart_event_handler(ARM_USART_SignalEvent_t event)
 
 		if(!CircularBuffer_is_empty(&outcome_packets_buffer))
 		{
-			processing_packet = (PacketBuffer)CircularBuffer_get(&outcome_packets_buffer);
+			processing_packet = CircularBuffer_get(&outcome_packets_buffer);
 
-			if(ESP_Driver_Usart->Send((void*)(processing_packet->buf), processing_packet->len) != ARM_DRIVER_OK)
+			if(ESP_Driver_Usart->Send((void*)(processing_packet->data), processing_packet->data_length) != ARM_DRIVER_OK)
 			{
 				critical_error("Can't send packet");
 			}
@@ -195,7 +195,7 @@ bool ESP8266_SendPacket(Packet packet)
 
 bool ESP8266_SendAck(void)
 {
-	Packet ack_packet = PacketManager_CreatePacket(NULL, 0, ACK_PACKET);
+	Packet ack_packet = PacketManager_create_packet(NULL, 0, ACK_PACKET);
 	bool res = ESP8266_SendPacket(ack_packet);
 	PacketManager_free(ack_packet);
 
@@ -206,7 +206,7 @@ bool ESP8266_SendAck(void)
 bool ESP8266_SendError(uint8_t error)
 {
 	uint8_t err[1] = {error};
-	Packet err_packet = PacketManager_CreatePacket(err, 1, ERROR_PACKET);
+	Packet err_packet = PacketManager_create_packet(err, 1, ERROR_PACKET);
 	bool res = ESP8266_SendPacket(err_packet);
 
 	PacketManager_free(err_packet);
@@ -234,7 +234,7 @@ Packet ESP8266_GetPacket(void)
 		return (Packet)CircularBuffer_get(&income_packets_buffer);
 	}
 
-	return PacketManager_CreatePacket(NULL, 0, NONE_PACKET);
+	return PacketManager_create_packet(NULL, 0, NONE_PACKET);
 }
 
 
@@ -262,18 +262,5 @@ static void receive_body(uint32_t body_len)
 	{
 		critical_error("Can't receive buffer");
 	}
-}
-
-
-static uint8_t* _packet_to_buf(Packet packet)
-{
-
-}
-
-
-static void _send_packet(Packet packet)
-{
-
-
 }
 
