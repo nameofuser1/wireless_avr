@@ -14,7 +14,6 @@
 #include "stm32f10x.h"
 #include "esp8266.h"
 #include "system.h"
-#include "common/Logging.h"
 #include "PacketManager.h"
 #include "common/CircularBuffer.h"
 #include <Driver_USART.h>
