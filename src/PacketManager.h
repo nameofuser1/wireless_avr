@@ -35,14 +35,11 @@ typedef struct _packet {
 
 
 void		PacketManager_init(void);
-bool 		PacketManager_parse(void);
-bool 		PacketManager_available(void);
-Packet		PacketManager_get_packet(void);
-PacketType	PacketManager_next_packet_type(void);
+Packet 		PacketManager_parse(uint8_t *buffer, uint32_t len);
 void		PacketManager_free(Packet packet);
-void		PacketManager_clear(void);
+Packet 		PacketManager_CreateErrorPacket(uint8_t err);
 Packet		PacketManager_CreatePacket(uint8_t* data, uint16_t data_len, PacketType type);
-
+uint8_t* 	PacketManager_Packet2Buf(Packet packet, uint32_t *bytes);
 
 
 

@@ -35,6 +35,8 @@
 #define PGM_ENABLE_PACKET_BYTE	0x99
 #define NETWORK_INFO_LOADED		0x98
 
+#define NONE_PACKET_BYTE 		0x00
+
 #define INTERNAL_ERROR_BYTE		0x00
 #define WRONG_PACKET_BYTE		0x01
 
@@ -54,14 +56,19 @@
 
 #define PACKETS_TYPES_NUMBER	(NONE_PACKET)
 
+/* For easy logging */
 static char* packet_names[PACKETS_TYPES_NUMBER] =
 {
 	"ProgInit", "Stop", 		"Cmd", 			"Reset", 		"Error", 	"ProgMem", "ReadMem",
 	"Usart", 	"UsartInit", 	"AvrProgInit",  "PGM enable", 	"ACK", 		"Memory",  "LOG",
 };
 
-static bool 	_check_crc(uint8_t *data, uint32_t len);
-static uint32_t _packet_crc(Packet packet)
+/* Static methods definitions */
+static bool 		_check_crc(uint8_t *data, uint32_t len);
+static uint32_t 	_packet_crc(Packet packet);
+static uint8_t 		_get_packet_type_byte(PacketType type);
+static PacketType 	_get_packet_type(uint8_t type_byte);
+
 
 
 void PacketManager_init(void)
@@ -69,55 +76,47 @@ void PacketManager_init(void)
 	crc32_init();
 }
 
+
 /*
- * ****************************************************
- * Parse packets from an array and save them to buffer
- * Use PacketManager_get_packet to get read packets
- * Be sure that array length is packet size scalable
- * ****************************************************
+ * *****************************************************
+ * Parse packets from an array
+ *
+ * As we don't receive any error packets then returning
+ * ERROR_PACKET means error while parsing. Check error
+ * by packet->data[0] byte.
+ * *****************************************************
  */
 Packet PacketManager_parse(uint8_t *packet_buffer, uint32_t data_len)
 {
-		uint32_t packet_len = 0;
-		for(uint8_t i=0; i<SIZE_FIELD_SIZE; i++)
+	uint32_t packet_len = 0;
+	for(uint8_t i=0; i<SIZE_FIELD_SIZE; i++)
+	{
+		packet_len |= ((packet_buffer[i]) << 8*(SIZE_FIELD_SIZE - i - 1));
+	}
+
+	uint8_t type_byte = packet_buffer[SIZE_FIELD_SIZE];	// next byte after size field
+	PacketType packet_type = _get_packet_type(type_byte);
+
+	if(packet_type == NONE_PACKET)
+	{
+		return PacketManager_error_packet(PACKET_TYPE_ERROR);
+	}
+
+	if(packet_type != LOG_PACKET)
+	{
+		if(!_check_crc(packet_buffer, data_len))
 		{
-			packet_len |= ((packet_buffer[i]) << 8*(SIZE_FIELD_SIZE - i - 1));
-		}
-
-		uint8_t type_byte = packet_buffer[SIZE_FIELD_SIZE];	// next byte after size field
-		PacketType packet_type = PacketManager_GetPacketType();
-
-		if(packet_type == NONE_PACKET)
-		{
-			critical_error(SYSTEM_ERROR, "Wrong packet type byte");
-		}
-
-		Packet packet;
-		if(packet_type != LOG_PACKET)
-		{
-			if(!_check_crc(packet_buffer, data_len))
-			{
-				return PacketManager_error_packet(PACKET_CRC_ERROR);
-			}
-		}
-
-		uint32_t data_length =  data_len - PACKET_RESERVED_BYTES;
-		uint8_t data_offset = PACKET_HEADER_SIZE;
-
-		uint8_t *packet_data = packet_buffer+data_offset;
-		packet = PacketManager_CreatePacket(packet_data, data_len, packet_type);
-
-		return packet;
-		}
-		else
-		{
-			int data_len = data_len - PACKET_HEADER_SIZE;
-			uint8_t data_offset = PACKET_HEADER_SIZE;
-			printf("ESP LOG: %.*s", data_len, (char*)(packet_buffer+data_offset));
+			return PacketManager_error_packet(PACKET_CRC_ERROR);
 		}
 	}
 
-	return true;
+	uint32_t data_length =  data_len - PACKET_RESERVED_BYTES;
+	uint8_t data_offset = PACKET_HEADER_SIZE;
+
+	uint8_t *packet_data = packet_buffer+data_offset;
+	Packet packet = PacketManager_CreatePacket(packet_data, data_len, packet_type);
+
+	return packet;
 }
 
 
@@ -137,7 +136,7 @@ void PacketManager_free(Packet packet)
 }
 
 
-Packet PacketManager_create_error_packet(uint8_t error)
+Packet PacketManager_CreateErrorPacket(uint8_t error)
 {
 	uint8_t data[1] = {error};
 	return PacketManager_CreatePacket(data, 1, ERROR_PACKET);
@@ -187,9 +186,9 @@ uint8_t* PacketManager_Packet2Buf(Packet packet, uint32_t *bytes)
 	*bytes = buffer_length;
 
 	uint8_t *buf = (uint8_t*)sys_malloc(sizeof(buffer_length));
-	int8_t type_byte = PacketManager_GetPacketTypeByte(packet->type);
+	uint8_t type_byte = _get_packet_type_byte(packet->type);
 
-	if(type_byte == -1)
+	if(type_byte == NONE_PACKET_BYTE)
 	{
 		critical_error(SYSTEM_ERROR, "Wrong packet type");
 	}
@@ -217,7 +216,7 @@ static uint32_t _packet_crc(Packet packet)
 	crc_buf[0] = (packet->data_length >> 8) & 0xFF;
 	crc_buf[1] = packet->data_length & 0xFF;
 
-	int8_t packet_type_byte = PacketManager_GetPacketTypeByte(packet->type);
+	int8_t packet_type_byte = _get_packet_type_byte(packet->type);
 	if(packet_type_byte == -1)
 	{
 		critical_error(SYSTEM_ERROR, "Wrong packet byte");
@@ -244,30 +243,12 @@ static bool _check_crc(uint8_t *data, uint32_t len)
 }
 
 
-PacketType PacketManager_GetPacketTypeByte(PacketType type)
+static uint8_t _get_packet_type_byte(PacketType type)
 {
 	switch(type)
 	{
-		case CMD_PACKET:
-			return CMD_PACKET_BYTE;
-
-		case ERROR_PACKET:
-			return ERROR_PACKET_BYTE;
-
-		case USART_PACKET:
-			return USART_PACKET_BYTE;
-
-		case ACK_PACKET:
-			return ACK_PACKET_BYTE;
-
-		case MEMORY_PACKET:
-			return MEMORY_PACKET_BYTE;
-
 		case PROG_INIT_PACKET:
 			return PROG_INIT_BYTE;
-
-		case AVR_PROG_INIT_PACKET:
-			return AVR_PROG_INIT_BYTE;
 
 		case STOP_PROGRAMMER_PACKET:
 			return STOP_PROGRAMMER_PACKET_BYTE;
@@ -278,39 +259,48 @@ PacketType PacketManager_GetPacketTypeByte(PacketType type)
 		case RESET_PACKET:
 			return RESET_PACKET_BYTE;
 
+		case ERROR_PACKET:
+			return ERROR_PACKET_BYTE;
+
 		case PROG_MEM_PACKET:
 			return PROG_MEM_PACKET_BYTE;
 
 		case READ_MEM_PACKET:
 			return READ_MEM_PACKET_BYTE;
 
+		case USART_PACKET:
+			return USART_PACKET_BYTE;
+
 		case USART_INIT_PACKET:
 			return USART_INIT_PACKET_BYTE;
+
+		case AVR_PROG_INIT_PACKET:
+			return AVR_PROG_INIT_BYTE;
 
 		case PGM_ENABLE_PACKET:
 			return PGM_ENABLE_PACKET_BYTE;
 
-		case ERROR_PACKET:
-			return ERROR_PACKET_BYTE;
+		case ACK_PACKET:
+			return ACK_PACKET_BYTE;
+
+		case MEMORY_PACKET:
+			return MEMORY_PACKET_BYTE;
 
 		case LOG_PACKET:
 			return LOG_PACKET_BYTE;
 
 		default:
-			return NONE_PACKET;
+			return NONE_PACKET_BYTE;
 	}
 }
 
 
-int8_t PacketManager_GetPacketType(uint8_t type_byte)
+static PacketType _get_packet_type(uint8_t type_byte)
 {
 	switch(type_byte)
 	{
 		case PROG_INIT_BYTE:
 			return PROG_INIT_PACKET;
-
-		case AVR_PROG_INIT_BYTE:
-			return AVR_PROG_INIT_PACKET;
 
 		case STOP_PROGRAMMER_PACKET_BYTE:
 			return STOP_PROGRAMMER_PACKET;
@@ -321,26 +311,38 @@ int8_t PacketManager_GetPacketType(uint8_t type_byte)
 		case RESET_PACKET_BYTE:
 			return RESET_PACKET;
 
+		case ERROR_PACKET_BYTE:
+			return ERROR_PACKET;
+
 		case PROG_MEM_PACKET_BYTE:
 			return PROG_MEM_PACKET;
 
 		case READ_MEM_PACKET_BYTE:
 			return READ_MEM_PACKET;
 
+		case USART_PACKET_BYTE:
+			return USART_PACKET;
+
 		case USART_INIT_PACKET_BYTE:
 			return USART_INIT_PACKET;
+
+		case AVR_PROG_INIT_BYTE:
+			return AVR_PROG_INIT_PACKET;
 
 		case PGM_ENABLE_PACKET_BYTE:
 			return PGM_ENABLE_PACKET;
 
-		case ERROR_PACKET_BYTE:
-			return ERROR_PACKET;
+		case ACK_PACKET_BYTE:
+			return ACK_PACKET;
+
+		case MEMORY_PACKET_BYTE:
+			return MEMORY_PACKET;
 
 		case LOG_PACKET_BYTE:
 			return LOG_PACKET;
 
 		default:
-			return -1;
+			return NONE_PACKET;
 	}
 }
 
