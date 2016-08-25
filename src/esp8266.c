@@ -95,9 +95,16 @@ static void usart_event_handler(ARM_USART_SignalEvent_t event)
 		{
 			Packet packet = PacketManager_parse(body_buffer);
 
-			if(packet->type == NONE_PACKET)
+			if(packet->type == ERROR_PACKET)
 			{
-				critical_error("Unknown packet");
+				if(packet->data[0] == PACKET_TYPE_ERROR)
+				{
+					critical_error("Unknown packet");
+				}
+				else if(packet->data[0] == PACKET_CRC_ERROR)
+				{
+					critical_error("Wrong crc");
+				}
 			}
 
 			CircularBuffer_put(&income_packets_buffer, (void*)packet);
