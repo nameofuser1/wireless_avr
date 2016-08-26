@@ -13,6 +13,7 @@
 
 #include "stm32f10x.h"
 #include "esp8266.h"
+#include "protocol.h"
 #include "system.h"
 #include "PacketManager.h"
 #include "common/CircularBuffer.h"
@@ -41,19 +42,22 @@ extern ARM_DRIVER_USART ESP_Driver_Usart;
 #define OUTCOME_PACKETS_BUFFER_SIZE 10
 #define INCOME_PACKETS_BUFFER_SIZE  5
 
+typedef struct _packet_buffer {
+	uint8_t *buf;
+	uint32_t length;
+} *PacketBuffer;
+
 /* Save outcome packets here */
 static CircularBuffer outcome_packets_buffer;
-static Packet processing_packet;
+static PacketBuffer processing_packet;
 
 /* Save income packets here */
 static CircularBuffer income_packets_buffer;
 
 /* Buffers for reading */
-#define HEADER_BUFFER_SIZE 	2
 #define BODY_BUFFER_SIZE 	512
 
-static uint8_t header_buffer[HEADER_BUFFER_SIZE];
-static uint8_t body_buffer[BODY_BUFFER_SIZE];
+static uint8_t in_buffer[BODY_BUFFER_SIZE];
 
 /* State defines */
 typedef enum 	{ESP_STATE_RECV_HEADERS, ESP_STATE_RECV_BODY} EspState;
@@ -62,6 +66,8 @@ static EspState esp_state = ESP_STATE_RECV_HEADERS;
 /* Static methods */
 static void receive_header(void);
 static void receive_body(uint32_t body_len);
+static void _send_packet(PacketBuffer packet);
+static void _free_packet_buf(PacketBuffer buf);
 
 
 static void usart_event_handler(ARM_USART_SignalEvent_t event)
@@ -72,12 +78,9 @@ static void usart_event_handler(ARM_USART_SignalEvent_t event)
 
 		if(!CircularBuffer_is_empty(&outcome_packets_buffer))
 		{
-			processing_packet = CircularBuffer_get(&outcome_packets_buffer);
-
-			if(ESP_Driver_Usart->Send((void*)(processing_packet->data), processing_packet->data_length) != ARM_DRIVER_OK)
-			{
-				critical_error("Can't send packet");
-			}
+			processing_packet = (PacketBuffer)CircularBuffer_get(&outcome_packets_buffer);
+			_send_packet(processing_packet);
+			_free_packet_buf(processing_packet);
 		}
 	}
 
@@ -85,15 +88,14 @@ static void usart_event_handler(ARM_USART_SignalEvent_t event)
 	{
 		if(esp_state == ESP_STATE_RECV_HEADERS)
 		{
-			memcpy(body_buffer, header_buffer, HEADER_BUFFER_SIZE);
-			uint16_t body_len = ((header_buffer[0] << 8) & 0xFF00) | (header_buffer[1] & 0xFF);
+			uint32_t packet_size = get_size_from_header(in_buffer);
+			receive_body(packet_size);
 
-			receive_body(body_len);
 			esp_state = ESP_STATE_RECV_BODY;
 		}
 		else
 		{
-			Packet packet = PacketManager_parse(body_buffer);
+			Packet packet = PacketManager_parse(in_buffer);
 
 			if(packet->type == ERROR_PACKET)
 			{
@@ -122,7 +124,7 @@ static void usart_event_handler(ARM_USART_SignalEvent_t event)
 		}
 		else
 		{
-			critical_error("IDLE Line while receiving packet body");
+			critical_error(SYSTEM_ERROR, "IDLE Line while receiving packet body");
 		}
 	}
 }
@@ -136,12 +138,12 @@ void ESP8266_Init(void)
 
 	if(!CircularBuffer_alloc(&outcome_packets_buffer, OUTCOME_PACKETS_BUFFER_SIZE))
 	{
-		critical_error("Memory error. Can't allocate outcome buffer");
+		critical_error(SYSTEM_ERROR_MEM, "Can't allocate outcome buffer");
 	}
 
 	if(!CircularBuffer_alloc(&income_packets_buffer, INCOME_PACKETS_BUFFER_SIZE))
 	{
-		critical_error("Memory error. Can't allocate income buffer");
+		critical_error(SYSTEM_ERROR_MEM, "Can't allocate income buffer");
 	}
 
 	/* Starting receiving packets */
@@ -178,18 +180,20 @@ bool ESP8266_SendPacket(Packet packet)
 {
 	if(packet->type != NONE_PACKET)
 	{
+		uint32_t buf_len = 0;
+
+		PacketBuffer packet_buf = (PacketBuffer)sys_malloc(sizeof(struct _packet_buffer));
+		packet_buf->buf = PacketManager_Packet2Buf(packet, &buf_len);
+		packet_buf->length = buf_len;
+
 		if(CircularBuffer_is_empty(&outcome_packets_buffer))
 		{
-			processing_packet = packet;
-
-			if(ESP_Driver_Usart->Send((void*)(packet->data), packet->data_length) != ARM_DRIVER_OK)
-			{
-				critical_error("Can't send packet.");
-			}
+			processing_packet = packet_buf;
+			_send_packet(processing_packet);
 		}
 		else
 		{
-			CircularBuffer_put(&outcome_packets_buffer, packet);
+			CircularBuffer_put(&outcome_packets_buffer, (void*)(packet_buf));
 		}
 
 		return true;
@@ -250,9 +254,9 @@ Packet ESP8266_GetPacket(void)
  */
 static void receive_header(void)
 {
-	if(ESP_Driver_Usart->Receive(header_buffer, HEADER_BUFFER_SIZE) != ARM_DRIVER_OK)
+	if(ESP_Driver_Usart->Receive(in_buffer, PACKET_HEADER_SIZE) != ARM_DRIVER_OK)
 	{
-		critical_error("Can't receive packet");
+		critical_error(SYSTEM_ERROR, "Can't receive packet headers");
 	}
 
 	ESP_USART_Typedef->CR1 &= ~(USART_CR1_IDLEIE);
@@ -264,9 +268,25 @@ static void receive_header(void)
  */
 static void receive_body(uint32_t body_len)
 {
-	if(ESP_Driver_Usart->Receive(body_buffer+HEADER_BUFFER_SIZE, body_len) != ARM_DRIVER_OK)
+	if(ESP_Driver_Usart->Receive(in_buffer+PACKET_HEADER_SIZE, body_len) != ARM_DRIVER_OK)
 	{
-		critical_error("Can't receive buffer");
+		critical_error(SYSTEM_ERROR, "Can't receive packet body");
 	}
 }
 
+
+static void _send_packet(PacketBuffer packet)
+{
+	if(ESP_Driver_Usart->Send((void*)(packet->buf),
+			packet->length) != ARM_DRIVER_OK)
+	{
+		critical_error(SYSTEM_ERROR, "Can't send packet");
+	}
+}
+
+
+static void _free_packet_buf(PacketBuffer buf)
+{
+	free(buf->buf);
+	free(buf);
+}
