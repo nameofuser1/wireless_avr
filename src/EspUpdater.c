@@ -88,7 +88,7 @@ static void usart_callback(uint32_t event)
 }
 
 
-void EspUpdater_init(uint32_t baudrate)
+void EspUpdater_Init(uint32_t baudrate)
 {
 	Driver_USART1.Initialize(usart_callback);
 	Driver_USART1.Control(ARM_USART_CONTROL_RX | ARM_USART_CONTROL_TX, 1);
