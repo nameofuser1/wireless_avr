@@ -10,7 +10,12 @@
 
 typedef enum {LOG_ERROR=0, LOG_DEBUG, LOG_WARNING, LOG_INFO} LogLevel;
 
-void LOGGING_Log(char *message, LogLevel lvl);
+void LOGGING_Log(const char *message, const LogLevel lvl);
+void LOGGING_Error(const char *msg);
+void LOGGING_Debug(const char *msg);
+void LOGGING_Warning(const char *msg);
+void LOGGING_Info(const char *msg);
+
 void LOGGING_SetLevel(LogLevel lvl);
 
 

@@ -15,12 +15,36 @@ static const
 char *levels_names[LOG_INFO+1] = {"LOG_ERROR", "LOG_DEBUG", "LOG_WARNING", "LOG_INFO"};
 
 
-void LOGGING_Log(const char *message, LogLevel lvl)
+void LOGGING_Log(const char *message, const LogLevel lvl)
 {
 	if(lvl < level)
 	{
 		printf("%s -- %s", levels_names[lvl], message);
 	}
+}
+
+
+void LOGGING_Error(const char *msg)
+{
+	LOGGING_Log(msg, LOG_ERROR);
+}
+
+
+void LOGGING_Debug(const char *msg)
+{
+	LOGGING_Log(msg, LOG_DEBUG);
+}
+
+
+void LOGGING_Warning(const char *msg)
+{
+	LOGGING_Log(msg, LOG_WARNING);
+}
+
+
+void LOGGING_Info(const char *msg)
+{
+	LOGGING_Log(msg, LOG_INFO);
 }
 
 

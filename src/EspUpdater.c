@@ -7,9 +7,9 @@
 
 
 #include "EspUpdater.h"
-#include "PacketManager.h"
 #include "protocol.h"
 #include "system.h"
+#include "esp8266.h"
 
 #include <USART_STM32F10x.h>
 
@@ -24,8 +24,9 @@ static uint8_t in_buffer[INPUT_BUFFER_SIZE];
 
 static uint8_t state = STATE_RECEIVE_HEADER;
 
-/* Usart driver is set from out */
-static ARM_DRIVER_USART driver;
+/* Usart Driver_USART1 is set from out */
+//static ARM_Driver_USART1_USART Driver_USART1;
+extern ARM_DRIVER_USART Driver_USART1;
 
 
 static void usart_callback(uint32_t event)
@@ -41,7 +42,7 @@ static void usart_callback(uint32_t event)
 						0xFF;
 			}
 
-			driver->Receive(in_buffer+PACKET_HEADER_SIZE, size);
+			Driver_USART1.Receive(in_buffer+PACKET_HEADER_SIZE, size);
 		}
 		else
 		{
@@ -53,7 +54,7 @@ static void usart_callback(uint32_t event)
 				{
 					critical_error(SYSTEM_ERROR, "CRC error");
 				}
-				else if(packet->data[0] == PACKET_TYPE_ERROR)
+				else if(packet->data[0] == PACKET_TYPES_ERROR)
 				{
 					critical_error(SYSTEM_ERROR, "Unknown packet type");
 				}
@@ -87,13 +88,12 @@ static void usart_callback(uint32_t event)
 }
 
 
-void EspUpdater_init(ARM_DRIVER_USART drv, uint32_t baudrate)
+void EspUpdater_init(uint32_t baudrate)
 {
-	driver = drv;
-	driver->Initialize(usart_callback);
-	driver->Control(ARM_USART_CONTROL_RX | ARM_USART_CONTROL_TX, 1);
-	driver->Control(ARM_USART_MODE_ASYNCHRONOUS, baudrate);
-	driver->PowerControl(ARM_POWER_FULL);
+	Driver_USART1.Initialize(usart_callback);
+	Driver_USART1.Control(ARM_USART_CONTROL_RX | ARM_USART_CONTROL_TX, 1);
+	Driver_USART1.Control(ARM_USART_MODE_ASYNCHRONOUS, baudrate);
+	Driver_USART1.PowerControl(ARM_POWER_FULL);
 }
 
 
@@ -106,5 +106,5 @@ void EspUpdater_LoadNetworkData(Packet data_packet)
 	 * 1 null character byte
 	 */
 
-		ESP8266_SendPacket(data_packet);
+	ESP8266_SendPacket(data_packet);
 }

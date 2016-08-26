@@ -16,10 +16,9 @@
 #define PROG_ARDUINO_BYTE	0x01
 #define PROG_STM_BYTE		0x02
 
-typedef enum { 	READY = 0, READ_PROG_INIT, READ_CMD, SEND_CMD,
-			  	PROG_MEM, READ_MEM, TERMINATE, FAILED} ProgramState;
+typedef enum { READY = 0, READ_MCU_INFO, READ_CMD, TERMINATE, FAILED} ProgramState;
 
-typedef enum { NONE = 0, INITIAL_ERROR, PROG_TYPE_ERROR, TIMEOUT } ResultCode;
+typedef enum { NONE = 0, INITIAL_ERROR, PROG_TYPE_ERROR, IO_ERROR, PACKET_TYPE_ERROR } ResultCode;
 
 typedef enum { PROG_AVR, PROG_ARDUINO, PROG_STM, PROG_NONE }	ProgrammerType;
 

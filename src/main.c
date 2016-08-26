@@ -27,10 +27,10 @@ int main(void)
 	SoftwareTimer2_set_duration(1);	//1 ms
 	SoftwareTimer2_start();
 
-	USART1_init();
-	USART_Cmd(USART1, ENABLE);
-	NVIC_EnableIRQ(USART1_IRQn);
-	USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+
+	//USART_Cmd(USART1, ENABLE);
+	//NVIC_EnableIRQ(USART1_IRQn);
+	//USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
 
 	/*
 	 * I know, I know...
@@ -59,10 +59,6 @@ int main(void)
 
 			case INITIAL_ERROR:
 				printf("Initial error in state %d\r\n", state);
-				break;
-
-			case TIMEOUT:
-				printf("Timeout error in state %d\r\n", state);
 				break;
 
 			case PROG_TYPE_ERROR:

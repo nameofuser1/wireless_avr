@@ -6,33 +6,50 @@
  */
 
 #include "system.h"
-#include "common/Logging.h"
+#include "common/logging.h"
 #include <stdlib.h>
+#include <stm32f10x.h>
 #include <core_cm3.h>
 
-#define NULL (void*)0
 
-
-static char* errors[SYSTEM_ERRORS_NUM] = {"System memory overflow"};
+static char* errors[SYSTEM_ERRORS_NUM] = {"System error", "Memory error", "IO error"};
 
 /*
  * 	Restart controller
  */
 void critical_error(uint8_t err, char *msg)
 {
-	LOGGING_log(errors[err], LOG_ERROR);
+	LOGGING_Error(errors[err]);
 
 	if(msg != NULL)
 	{
-		LOGGING_Log(msg, LOG_ERROR);
+		LOGGING_Error(msg);
 	}
 
-	LOGGING_Log("Resetting device", LOG_ERROR);
+	LOGGING_Error("Resetting device");
 	NVIC_SystemReset();
 }
 
 
-void* sys_malloc(size_t size)
+void system_error(char *msg)
+{
+	critical_error(SYSTEM_ERROR, msg);
+}
+
+
+void memory_error(char *msg)
+{
+	critical_error(SYSTEM_ERROR_MEM, msg);
+}
+
+
+void io_error(char *msg)
+{
+	critical_error(SYSTEM_ERROR_IO, msg);
+}
+
+
+void* sys_malloc(int32_t size)
 {
 	void *arr = malloc(size);
 	if(arr == NULL)

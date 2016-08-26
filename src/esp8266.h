@@ -20,8 +20,8 @@ bool 		ESP8266_SendPacket(Packet packet);
 bool 		ESP8266_SendAck(void);
 bool 		ESP8266_SendError(uint8_t error);
 bool 		ESP8266_TransmissionStatus(void);
-uint32_t 	ESP8266_Available(void);
-Packet 		ESP8266_GetPacket(uint8_t *buf, uint32_t len);
+bool	 	ESP8266_Available(void);
+Packet 		ESP8266_GetPacket(void);
 
 
 

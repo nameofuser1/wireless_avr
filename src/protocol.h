@@ -18,13 +18,13 @@
 
 /* Receive packet types */
 #define LOG_PACKET_BYTE					0x10
-#define PROG_INIT_BYTE					0x11
+#define AVR_PROG_INIT_BYTE				0x11
 #define STOP_PROGRAMMER_PACKET_BYTE		0x22
 #define CMD_PACKET_BYTE					0x33
 #define RESET_PACKET_BYTE				0x44
 #define PROG_MEM_PACKET_BYTE			0x55
 #define USART_INIT_PACKET_BYTE			0x66
-#define AVR_PROG_INIT_BYTE				0x77
+#define LOAC_MCU_INFO_BYTE				0x77
 #define READ_MEM_PACKET_BYTE			0x88
 #define PGM_ENABLE_PACKET_BYTE			0x99
 
@@ -38,14 +38,18 @@
 
 #define SIZE_FIELD_SIZE			2
 #define SIZE_FIELD_OFFSET		0
-#define SIZE_FIELD_OFFSET		2
+#define TYPE_FIELD_OFFSET		2
 #define TYPE_FIELD_SIZE			1
 #define CRC_FIELD_SIZE     		4
 #define PACKET_HEADER_SIZE		(SIZE_FIELD_SIZE + TYPE_FIELD_SIZE)
 #define PACKET_RESERVED_BYTES	(SIZE_FIELD_SIZE + TYPE_FIELD_SIZE + CRC_FIELD_SIZE)
 
+/* Reset packet parameters */
+#define RESET_ENABLE 	1
+#define RESET_DISABLE	0
 
-uint32_t get_size_from_header(uint8_t *header)
+
+static uint32_t get_size_from_header(uint8_t *header)
 {
 	uint32_t size = 0;
 

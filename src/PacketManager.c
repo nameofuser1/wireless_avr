@@ -67,14 +67,14 @@ Packet PacketManager_parse(uint8_t *packet_buffer)
 
 	if(packet_type == NONE_PACKET)
 	{
-		return PacketManager_error_packet(PACKET_TYPE_ERROR);
+		return PacketManager_CreateErrorPacket(PACKET_TYPES_ERROR);
 	}
 
 	if(packet_type != LOG_PACKET)
 	{
 		if(!_check_crc(packet_buffer, packet_len))
 		{
-			return PacketManager_error_packet(PACKET_CRC_ERROR);
+			return PacketManager_CreateErrorPacket(PACKET_CRC_ERROR);
 		}
 	}
 
@@ -215,8 +215,8 @@ static uint8_t _get_packet_type_byte(PacketType type)
 {
 	switch(type)
 	{
-		case PROG_INIT_PACKET:
-			return PROG_INIT_BYTE;
+		case AVR_PROG_INIT_PACKET:
+			return AVR_PROG_INIT_BYTE;
 
 		case STOP_PROGRAMMER_PACKET:
 			return STOP_PROGRAMMER_PACKET_BYTE;
@@ -242,8 +242,8 @@ static uint8_t _get_packet_type_byte(PacketType type)
 		case USART_INIT_PACKET:
 			return USART_INIT_PACKET_BYTE;
 
-		case AVR_PROG_INIT_PACKET:
-			return AVR_PROG_INIT_BYTE;
+		case LOAD_MCU_INFO_PACKET:
+			return LOAC_MCU_INFO_BYTE;
 
 		case PGM_ENABLE_PACKET:
 			return PGM_ENABLE_PACKET_BYTE;
@@ -270,8 +270,8 @@ static PacketType _get_packet_type(uint8_t type_byte)
 {
 	switch(type_byte)
 	{
-		case PROG_INIT_BYTE:
-			return PROG_INIT_PACKET;
+		case AVR_PROG_INIT_BYTE:
+			return AVR_PROG_INIT_PACKET;
 
 		case STOP_PROGRAMMER_PACKET_BYTE:
 			return STOP_PROGRAMMER_PACKET;
@@ -297,8 +297,8 @@ static PacketType _get_packet_type(uint8_t type_byte)
 		case USART_INIT_PACKET_BYTE:
 			return USART_INIT_PACKET;
 
-		case AVR_PROG_INIT_BYTE:
-			return AVR_PROG_INIT_PACKET;
+		case LOAC_MCU_INFO_BYTE:
+			return LOAD_MCU_INFO_PACKET;
 
 		case PGM_ENABLE_PACKET_BYTE:
 			return PGM_ENABLE_PACKET;

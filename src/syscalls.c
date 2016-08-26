@@ -11,12 +11,13 @@
 #include <Driver_USART.h>
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wunused-variable"
 
 #undef errno
 extern int errno;
 extern int  _end;
 
-#define PRINTF_DRIVER ARM_Driver_USART1
+#define PRINTF_DRIVER Driver_USART1
 extern ARM_DRIVER_USART PRINTF_DRIVER;
 
 
@@ -97,7 +98,7 @@ int _write(int file, char *ptr, int len)
 
 #if 1
      (void)file;
-     while(PRINTF_DRIVER->Send((void*)ptr, len) == ARM_DRIVER_ERROR_BUSY);
+     while(PRINTF_DRIVER.Send((void*)ptr, len) == ARM_DRIVER_ERROR_BUSY);
 #endif
 
     return len;

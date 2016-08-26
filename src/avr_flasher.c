@@ -71,7 +71,7 @@ void AVRFlasher_stop(void)
 /*
  * *******************************************
  * Extract useful data from packet
- * Don't forget to free packet.data after all
+ * Don't forget to free packet->data after all
  * *******************************************
  */
 AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
@@ -82,9 +82,9 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 
 	/*
 	uint8_t m = 0;
-	for(uint16_t i = 0; i<packet.data_length;i++)
+	for(uint16_t i = 0; i<packet->data_length;i++)
 	{
-		printf("0x%02x\t", packet.data[i]);
+		printf("0x%02x\t", packet->data[i]);
 
 		if(++m == 9)
 		{
@@ -96,13 +96,13 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 	printf("\r\n");
 	*/
 
-	init_packet.flash_load_lo_len = packet.data[k++];
+	init_packet.flash_load_lo_len = packet->data[k++];
 	init_packet.flash_load_lo_pattern = (char*)malloc(sizeof(char)*init_packet.flash_load_lo_len);
 
 	//printf("Load lo len: %" PRIu8 "\r\nLoad lo pattern:\r\n ", init_packet.flash_load_lo_len);
 	for(uint32_t i=0; i<init_packet.flash_load_lo_len; i++)
 	{
-		init_packet.flash_load_lo_pattern[i] = packet.data[k++];
+		init_packet.flash_load_lo_pattern[i] = packet->data[k++];
 		/*printf("0x%02x ", init_packet.flash_load_lo_pattern[i]);
 		if(i%10 == 9)
 		{
@@ -111,13 +111,13 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 	}
 	//printf("\r\n");
 
-	init_packet.flash_load_hi_len = packet.data[k++];
+	init_packet.flash_load_hi_len = packet->data[k++];
 	init_packet.flash_load_hi_pattern = (char*) malloc(sizeof(char)*init_packet.flash_load_hi_len);
 
 	//printf("\r\nLoad hi len: %" PRIu8 "\r\nLoad hi pattern:\r\n ", init_packet.flash_load_hi_len);
 	for(uint32_t i=0; i<init_packet.flash_load_hi_len; i++)
 	{
-		init_packet.flash_load_hi_pattern[i] = (char)packet.data[k++];
+		init_packet.flash_load_hi_pattern[i] = (char)packet->data[k++];
 		/*printf("0x%02x ", init_packet.flash_load_hi_pattern[i]);
 		if(i%10 == 9)
 		{
@@ -126,13 +126,13 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 	}
 	//printf("\r\n");
 
-	init_packet.flash_read_lo_len = packet.data[k++];
+	init_packet.flash_read_lo_len = packet->data[k++];
 	init_packet.flash_read_lo_pattern = (char*)malloc(sizeof(char)*init_packet.flash_read_lo_len);
 
 	//printf("\r\nRead lo len: %" PRIu8 "\r\nRead lo pattern:\r\n", init_packet.flash_read_lo_len);
 	for(uint32_t i=0; i<init_packet.flash_read_lo_len; i++)
 	{
-		init_packet.flash_read_lo_pattern[i] = (char)packet.data[k++];
+		init_packet.flash_read_lo_pattern[i] = (char)packet->data[k++];
 		/*
 		printf("0x%02x ", (uint8_t)init_packet.flash_read_lo_pattern[i]);
 		if(i%10 == 9)
@@ -144,13 +144,13 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 	//printf("\r\n");
 
 
-	init_packet.flash_read_hi_len = packet.data[k++];
+	init_packet.flash_read_hi_len = packet->data[k++];
 	init_packet.flash_read_hi_pattern = (char*)malloc(sizeof(char)*init_packet.flash_read_hi_len);
 
 	//printf("\r\nRead hi len: %" PRIu8 "\r\nRead hi pattern:\r\n", init_packet.flash_read_hi_len);
 	for(uint32_t i=0; i<init_packet.flash_read_hi_len; i++)
 	{
-		init_packet.flash_read_hi_pattern[i] = packet.data[k++];
+		init_packet.flash_read_hi_pattern[i] = packet->data[k++];
 		/*
 		printf("0x%02x ", (uint8_t)init_packet.flash_read_hi_pattern[i]);
 		if(i%10 == 9)
@@ -161,16 +161,16 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 	}
 
 
-	init_packet.flash_wait_ms = packet.data[k++];
+	init_packet.flash_wait_ms = packet->data[k++];
 	//printf("\r\nFlash wait: %" PRIu8 "\r\n", init_packet.flash_wait_ms);
 
-	init_packet.eeprom_write_len = packet.data[k++];
+	init_packet.eeprom_write_len = packet->data[k++];
 	init_packet.eeprom_write_pattern = (char*) malloc(sizeof(char)*init_packet.eeprom_write_len);
 
 	//printf("\r\nEeprom write len: %" PRIu8 "\r\nEeprom write pattern:\r\n", init_packet.eeprom_write_len);
 	for(uint32_t i=0; i<init_packet.eeprom_write_len; i++)
 	{
-		init_packet.eeprom_write_pattern[i] = packet.data[k++];
+		init_packet.eeprom_write_pattern[i] = packet->data[k++];
 		/*
 		printf("0x%02x ", (uint8_t)init_packet.eeprom_write_pattern[i]);
 		if(i%10 == 9)
@@ -181,13 +181,13 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 	}
 
 
-	init_packet.eeprom_read_len = packet.data[k++];
+	init_packet.eeprom_read_len = packet->data[k++];
 	init_packet.eeprom_read_pattern = (char*) malloc(sizeof(char)*init_packet.eeprom_read_len);
 
 	//printf("\r\n\r\nEeprom read len: %" PRIu8 "\r\nEeprom read pattern:\r\n", init_packet.eeprom_read_len);
 	for (uint32_t i=0; i<init_packet.eeprom_read_len; i++)
 	{
-		init_packet.eeprom_read_pattern[i] = packet.data[k++];
+		init_packet.eeprom_read_pattern[i] = packet->data[k++];
 		//printf("%c", init_packet.eeprom_read_pattern[i]);
 		/*
 		printf("0x%02x ", (uint8_t)init_packet.eeprom_read_pattern[i]);
@@ -199,13 +199,13 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 	}
 
 
-	init_packet.eeprom_wait_ms = packet.data[k++];
+	init_packet.eeprom_wait_ms = packet->data[k++];
 	//printf("\r\n\r\nEeprom wait: %" PRIu8 "\r\n", init_packet.eeprom_wait_ms);
 
 	//printf("PGM enable: ");
 	for(uint32_t i=0; i<AVR_CMD_SIZE; i++)
 	{
-		init_packet.pgm_enable[i] = packet.data[k++];
+		init_packet.pgm_enable[i] = packet->data[k++];
 		/*
 		printf("0x%02x ", init_packet.pgm_enable[i]);
 		if(i%10 == 9)
@@ -215,7 +215,7 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 		*/
 	}
 
-	//printf("Packet length is %" PRIu16 " bytes\r\nUsed %" PRIu32 " bytes\r\n", packet.data_length, k-1);
+	//printf("Packet length is %" PRIu16 " bytes\r\nUsed %" PRIu32 " bytes\r\n", packet->data_length, k-1);
 	printf("\r\nMcu info got\r\n");
 
 	return init_packet;
@@ -225,7 +225,7 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 /*
  * *************************************************
  * Extract useful information from packet
- * Don't forget to free packet.data after all
+ * Don't forget to free packet->data after all
  * *************************************************
  */
 AvrProgMemData	AVRFlasher_get_prog_mem_data(Packet packet)
@@ -233,14 +233,14 @@ AvrProgMemData	AVRFlasher_get_prog_mem_data(Packet packet)
 	//printf("Getting prog mem data\r\n");
 	AvrProgMemData mem_data;
 
-	mem_data.start_address = (packet.data[0] << 24) | (packet.data[1] << 16) | (packet.data[2] << 8) |
-			(packet.data[3]);
-	mem_data.memory_type = AVRFlasher_get_memory_type(packet.data[4]);
+	mem_data.start_address = (packet->data[0] << 24) | (packet->data[1] << 16)
+			| (packet->data[2] << 8) | (packet->data[3]);
 
-	mem_data.data_len = (packet.data_length-5);
+	mem_data.memory_type = AVRFlasher_get_memory_type(packet->data[4]);
+	mem_data.data_len = (packet->data_length-5);
 	mem_data.data = (uint8_t*) malloc(sizeof(uint8_t) * mem_data.data_len);
 
-	memcpy(mem_data.data, packet.data+5, mem_data.data_len);
+	memcpy(mem_data.data, packet->data+5, mem_data.data_len);
 
 	//printf("Got prog mem data\r\n");
 	return mem_data;
@@ -250,7 +250,7 @@ AvrProgMemData	AVRFlasher_get_prog_mem_data(Packet packet)
 /*
  * **********************************************
  * Extract AvrReadMemData from packet
- * Don't forger to free packet.data after all
+ * Don't forger to free packet->data after all
  * **********************************************
  */
 AvrReadMemData	AVRFlasher_get_read_mem_data(Packet packet)
@@ -258,10 +258,10 @@ AvrReadMemData	AVRFlasher_get_read_mem_data(Packet packet)
 	AvrReadMemData mem_data;
 
 
-	mem_data.start_address = (packet.data[0] << 24) | (packet.data[1] << 16) | (packet.data[2] << 8) |
-			(packet.data[3]);
-	mem_data.bytes_to_read = (packet.data[4] << 24) | (packet.data[5] << 16) | (packet.data[6] << 8) |
-			(packet.data[7]);
+	mem_data.start_address = (packet->data[0] << 24) | (packet->data[1] << 16) | (packet->data[2] << 8) |
+			(packet->data[3]);
+	mem_data.bytes_to_read = (packet->data[4] << 24) | (packet->data[5] << 16) | (packet->data[6] << 8) |
+			(packet->data[7]);
 
 	return mem_data;
 }
