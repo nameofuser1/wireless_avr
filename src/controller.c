@@ -5,11 +5,12 @@
  *      Author: kripton
  */
 
+#include "controller.h"
 #include "system.h"
 #include "protocol.h"
-#include "controller.h"
 #include "esp8266.h"
 #include "avr_flasher.h"
+#include "EspUpdater.h"
 #include "soft_timers/SoftwareTimer2.h"
 #include "common/logging.h"
 
@@ -44,6 +45,10 @@ static Packet current_packet = NULL;
 
 void CONTROLLER_init(void)
 {
+	/* Initialize it first because it's
+	 * also responsible for printf  */
+	EspUpdater_Init(115200);
+	LOGGING_SetLevel(LOG_INFO);
 	LOGGING_Info("Controller init\r\n");
 
 	SoftwareTimer2_init();

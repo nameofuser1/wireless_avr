@@ -1,14 +1,7 @@
-#include <crc32.h>
 #include <stm32f10x.h>
-#include <stm32f10x_usart.h>
-#include "esp8266.h"
 #include "controller.h"
-#include <stdio.h>
-#include <inttypes.h>
-#include <stm32f10x_crc.h>
-#include <stm32f10x_exti.h>
-#include "soft_timers/SoftwareTimer.h"
-#include "soft_timers/SoftwareTimer2.h"
+#include "common/logging.h"
+#include "esp8266.h"
 
 void CLOCK_init(void);
 static void gpio_init(void);
@@ -20,17 +13,7 @@ int main(void)
 	__enable_fault_irq();
 	__enable_irq();
 
-
 	gpio_init();
-
-	SoftwareTimer2_init();
-	SoftwareTimer2_set_duration(1);	//1 ms
-	SoftwareTimer2_start();
-
-
-	//USART_Cmd(USART1, ENABLE);
-	//NVIC_EnableIRQ(USART1_IRQn);
-	//USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
 
 	/*
 	 * I know, I know...
@@ -45,7 +28,7 @@ int main(void)
 	{
 		if(!ESP8266_Ready())
 		{
-			printf("Esp disconected\r\n");
+			LOGGING_Debug("Esp disconected");
 			CONTROLLER_DeInit();
 			goto esp_wait_ready;
 		}
@@ -58,11 +41,9 @@ int main(void)
 				break;
 
 			case INITIAL_ERROR:
-				printf("Initial error in state %d\r\n", state);
 				break;
 
 			case PROG_TYPE_ERROR:
-				printf("Prog type error in state %d\r\n", state);
 				break;
 		}
 	}
