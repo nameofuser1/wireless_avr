@@ -17,7 +17,7 @@ char *levels_names[LOG_INFO+1] = {"LOG_ERROR", "LOG_DEBUG", "LOG_WARNING", "LOG_
 
 void LOGGING_Log(const char *message, const LogLevel lvl)
 {
-	if(lvl < level)
+	if(lvl <= level)
 	{
 		printf("%s -- %s", levels_names[lvl], message);
 	}
