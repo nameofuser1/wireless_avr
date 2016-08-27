@@ -35,13 +35,9 @@ static void usart_callback(uint32_t event)
 	{
 		if(state == STATE_RECEIVE_HEADER)
 		{
-			uint16_t size = 0;
-			for(uint8_t i=0; i<SIZE_FIELD_SIZE; i++)
-			{
-				size |= (in_buffer[SIZE_FIELD_OFFSET+i] >> 8*(SIZE_FIELD_SIZE-i - 1)) &
-						0xFF;
-			}
+			uint16_t size = get_size_from_header(in_buffer);
 
+			state = STATE_RECEIVE_BODY;
 			Driver_USART1.Receive(in_buffer+PACKET_HEADER_SIZE, size);
 		}
 		else
@@ -68,6 +64,9 @@ static void usart_callback(uint32_t event)
 			{
 				EspUpdater_LoadNetworkData(packet);
 				PacketManager_free(packet);
+
+				state = STATE_RECEIVE_HEADER;
+				Driver_USART1.Receive(in_buffer, PACKET_HEADER_SIZE);
 			}
 		}
 	}
@@ -94,6 +93,9 @@ void EspUpdater_Init(uint32_t baudrate)
 	Driver_USART1.Control(ARM_USART_CONTROL_RX | ARM_USART_CONTROL_TX, 1);
 	Driver_USART1.Control(ARM_USART_MODE_ASYNCHRONOUS, baudrate);
 	Driver_USART1.PowerControl(ARM_POWER_FULL);
+
+	state = STATE_RECEIVE_HEADER;
+	Driver_USART1.Receive(in_buffer, PACKET_HEADER_SIZE);
 }
 
 
