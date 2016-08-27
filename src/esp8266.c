@@ -12,9 +12,10 @@
 #include <inttypes.h>
 
 #include "stm32f10x.h"
+#include "system.h"
 #include "esp8266.h"
 #include "protocol.h"
-#include "system.h"
+#include "transport.h"
 #include "common/logging.h"
 #include "PacketManager.h"
 #include "common/CircularBuffer.h"
@@ -32,6 +33,7 @@
 
 /* Import usart driver */
 #define ESP_USART_Typedef	USART3
+#define ESP_USART_IRQn		USART3_IRQn
 #define ESP_Driver_Usart 	Driver_USART3
 
 extern ARM_DRIVER_USART ESP_Driver_Usart;
@@ -42,11 +44,6 @@ extern ARM_DRIVER_USART ESP_Driver_Usart;
 /* Buffer sizes for saving packets */
 #define OUTCOME_PACKETS_BUFFER_SIZE 10
 #define INCOME_PACKETS_BUFFER_SIZE  5
-
-typedef struct _packet_buffer {
-	uint8_t *buf;
-	uint32_t length;
-} *PacketBuffer;
 
 /* Save outcome packets here */
 static CircularBuffer outcome_packets_buffer;
@@ -196,7 +193,10 @@ bool ESP8266_SendPacket(Packet packet)
 		}
 		else
 		{
+			/* Disable IRQ for safe update */
+			NVIC_DisableIRQ(ESP_USART_IRQn);
 			CircularBuffer_put(&outcome_packets_buffer, (void*)(packet_buf));
+			NVIC_EnableIRQ(ESP_USART_IRQn);
 		}
 
 		return true;
@@ -259,7 +259,7 @@ static void receive_header(void)
 {
 	if(ESP_Driver_Usart.Receive(in_buffer, PACKET_HEADER_SIZE) != ARM_DRIVER_OK)
 	{
-	system_error("Can't receive packet headers");
+		system_error("Can't receive packet headers");
 	}
 
 	ESP_USART_Typedef->CR1 &= ~(USART_CR1_IDLEIE);
