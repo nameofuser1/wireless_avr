@@ -11,6 +11,7 @@
 #include "esp8266.h"
 #include "avr_flasher.h"
 #include "EspUpdater.h"
+#include "UsartBridge.h"
 #include "soft_timers/SoftwareTimer2.h"
 #include "common/logging.h"
 
@@ -128,6 +129,12 @@ static void CONTROLLER_state_ready(void)
 				AVRFlasher_stop();
 				AVRFlasher_reset_disable();
 				state = READY;
+				break;
+
+			case USART_INIT_PACKET:
+				_send_ack();
+				UsartBridge_Init(115200);
+				UsartBridge_Start();
 				break;
 
 			case RESET_PACKET:
