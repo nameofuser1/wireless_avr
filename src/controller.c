@@ -120,6 +120,11 @@ static void CONTROLLER_state_ready(void)
 		{
 			case AVR_PROG_INIT_PACKET:
 				_send_ack();
+
+				/* Stop UsartBridge before programming */
+				UsartBridge_Stop();
+				UsartBridge_DeInit();
+
 				programmer_type = CONTROLLER_get_prog_type(current_packet->data[0]);
 				state = READ_MCU_INFO;
 				break;
@@ -133,8 +138,13 @@ static void CONTROLLER_state_ready(void)
 
 			case USART_INIT_PACKET:
 				_send_ack();
-				UsartBridge_Init(115200);
+				UsartBridge_Init(current_packet);
 				UsartBridge_Start();
+				break;
+
+			case USART_PACKET:
+				_send_ack();
+				UsartBridge_Send(current_packet);
 				break;
 
 			case RESET_PACKET:

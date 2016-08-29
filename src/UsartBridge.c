@@ -7,6 +7,7 @@
 
 
 #include "system.h"
+#include "protocol.h"
 #include "UsartBridge.h"
 #include "USART_STM32F10x.h"
 #include "esp8266.h"
@@ -32,8 +33,15 @@ static CircularBuffer 			send_buffer;
 static Packet					processing_packet;
 
 /* Static method definitions */
-static void _send_packet(Packet packet);
+static void		_send_packet(Packet packet);
+static uint32_t _set_baudrate(uint8_t baudrate_byte);
+static void 	_set_parity(uint8_t parity_byte);
+static void 	_set_data_bits(uint8_t data_bits_byte);
+static void 	_set_stop_bits(uint8_t stop_bits_byte);
 
+/* Variables for tracking state */
+static uint8_t initialized = 0;
+static uint8_t started = 0;
 
 
 static void usart_bridge_callback(uint32_t event)
@@ -62,47 +70,83 @@ static void usart_bridge_callback(uint32_t event)
 			_send_packet(processing_packet);
 		}
 	}
+
+	if(event & ARM_USART_EVENT_RX_FRAMING_ERROR)
+	{
+		ESP8266_SendError(USART_FRAME_ERROR_BYTE);
+	}
+
+	if(event & ARM_USART_EVENT_RX_PARITY_ERROR)
+	{
+		ESP8266_SendError(USART_PARITY_ERROR_BYTE);
+	}
 }
 
 
-void UsartBridge_Init(uint32_t baudrate)
+void UsartBridge_Init(Packet usart_config)
 {
-	UsartBridge_Driver.Initialize(usart_bridge_callback);
-	UsartBridge_Driver.Control(ARM_USART_CONTROL_RX | ARM_USART_CONTROL_TX, 1);
-	UsartBridge_Driver.Control(ARM_USART_MODE_ASYNCHRONOUS, 1);
-	UsartBridge_Driver.PowerControl(ARM_POWER_FULL);
+	if(!initialized)
+	{
+		UsartBridge_Driver.Initialize(usart_bridge_callback);
+		UsartBridge_Driver.Control(ARM_USART_CONTROL_RX | ARM_USART_CONTROL_TX, 1);
 
-	/* FRAME_SIZE_MS milliseconds of frame in bytes */
-	bridge_buffer_size = (baudrate * FRAME_SIZE_MS) / 1000 / 8;
-	bridge_buffer = (uint8_t*)sys_malloc(sizeof(uint8_t) * bridge_buffer_size);
+		uint32_t baudrate = _set_baudrate(usart_config->data[USART_BAUDRATE_BYTE_OFFSET]);
+		_set_parity(usart_config->data[USART_PARITY_BYTE_OFFSET]);
+		_set_data_bits(usart_config->data[USART_DATA_BITS_BYTE_OFFSET]);
+		_set_stop_bits(usart_config->data[USART_STOP_BITS_BYTE_OFFSET]);
 
-	/* Allocate buffer for sending packets */
-	CircularBuffer_alloc(&send_buffer, SEND_BUFFER_SIZE);
+		/* FRAME_SIZE_MS milliseconds of frame in bytes */
+		bridge_buffer_size = (baudrate * FRAME_SIZE_MS) / 1000 / 8;
+		bridge_buffer = (uint8_t*)sys_malloc(sizeof(uint8_t) * bridge_buffer_size);
+
+		/* Allocate buffer for sending packets */
+		CircularBuffer_alloc(&send_buffer, SEND_BUFFER_SIZE);
+
+		UsartBridge_Driver.PowerControl(ARM_POWER_FULL);
+		initialized = 1;
+	}
 }
 
 
 void UsartBridge_DeInit(void)
 {
-	UsartBridge_Driver.Uninitialize();
+	if(initialized)
+	{
+		UsartBridge_Driver.Uninitialize();
+		initialized = 0;
+	}
 }
 
 
 void UsartBridge_Start(void)
 {
 	/* Start receiving */
-	UsartBridge_Driver.Receive(bridge_buffer, bridge_buffer_size);
+	if(!started)
+	{
+		UsartBridge_Driver.Receive(bridge_buffer, bridge_buffer_size);
+		started = 1;
+	}
 }
 
 
 void UsartBridge_Stop(void)
 {
 	/* Abort receiving and sending */
-	UsartBridge_Driver.Control(ARM_USART_ABORT_TRANSFER, 1);
+	if(started)
+	{
+		UsartBridge_Driver.Control(ARM_USART_ABORT_TRANSFER, 1);
+		started = 0;
+	}
 }
 
 
 void UsartBridge_Send(Packet usart_packet)
 {
+	if(!initialized)
+	{
+		system_error("Can't send over USART. UsartDriver is not initialized");
+	}
+
 	Packet packet_cpy = PacketManager_Copy(usart_packet);
 
 	if(CircularBuffer_is_empty(&send_buffer))
@@ -128,3 +172,127 @@ static void _send_packet(Packet packet)
 		io_error("Can't send data over UsartBridge");
 	}
 }
+
+
+static uint32_t _set_baudrate(uint8_t baudrate_byte)
+{
+	uint32_t baudrate = 0;
+
+	switch(baudrate_byte)
+	{
+		case USART_BAUDRATE_9600:
+			baudrate = 9600;
+			break;
+
+		case USART_BAUDRATE_19200:
+			baudrate = 19200;
+			break;
+
+		case USART_BAUDRATE_115200:
+			baudrate = 115200;
+			break;
+
+		default:
+			system_error("Wrong USART baudrate byte");
+	}
+
+	if(UsartBridge_Driver.Control(ARM_USART_MODE_ASYNCHRONOUS, baudrate) ==
+			ARM_USART_ERROR_MODE)
+	{
+		system_error("Can't set USART mode");
+	}
+
+	return baudrate;
+}
+
+
+static void _set_parity(uint8_t parity_byte)
+{
+	uint32_t parity = 0;
+
+	switch(parity_byte)
+	{
+		case USART_PARITY_NONE:
+			parity = ARM_USART_PARITY_NONE;
+			break;
+
+		case USART_PARITY_EVEN:
+			parity = ARM_USART_PARITY_EVEN;
+			break;
+
+		case USART_PARITY_ODD:
+			parity = ARM_USART_PARITY_ODD;
+			break;
+
+		default:
+			system_error("Wrong parity byte");
+	}
+
+	if(UsartBridge_Driver.Control(parity, 1) == ARM_USART_ERROR_PARITY)
+	{
+		system_error("Can't set USART parity");
+	}
+}
+
+
+static void _set_data_bits(uint8_t data_bits_byte)
+{
+	uint32_t data_bits = 0;
+
+	switch(data_bits_byte)
+	{
+		case USART_DATA_BITS_8:
+			data_bits = ARM_USART_DATA_BITS_8;
+			break;
+
+		case USART_DATA_BITS_9:
+			data_bits = ARM_USART_DATA_BITS_9;
+			break;
+
+		default:
+			system_error("Wrong data_bits byte");
+	}
+
+	if(UsartBridge_Driver.Control(data_bits, 1) == ARM_USART_ERROR_DATA_BITS)
+	{
+		system_error("Can't set given data_bits");
+	}
+}
+
+
+static void _set_stop_bits(uint8_t stop_bits_byte)
+{
+	uint32_t stop_bits = 0;
+
+	switch(stop_bits_byte)
+	{
+		case USART_STOP_BITS_1:
+			stop_bits = ARM_USART_STOP_BITS_1;
+			break;
+
+		case USART_STOP_BITS_2:
+			stop_bits = ARM_USART_STOP_BITS_2;
+			break;
+
+		default:
+			system_error("Wrong stop_bits byte");
+	}
+
+	if(UsartBridge_Driver.Control(stop_bits, 1) == ARM_USART_ERROR_STOP_BITS)
+	{
+		system_error("Can't set given stop bits");
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+

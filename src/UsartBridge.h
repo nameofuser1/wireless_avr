@@ -10,7 +10,7 @@
 
 #include "PacketManager.h"
 
-void UsartBridge_Init(uint32_t baudrate);
+void UsartBridge_Init(Packet usart_config);
 void UsartBridge_DeInit(void);
 void UsartBridge_Start(void);
 void UsartBridge_Stop(void);

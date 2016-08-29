@@ -178,6 +178,18 @@ uint8_t* PacketManager_Packet2Buf(Packet packet, uint32_t *bytes)
 }
 
 
+Packet PacketManager_Copy(Packet packet)
+{
+	Packet cpy = (Packet)sys_malloc(sizeof(struct _packet));
+	memcpy(cpy->data, packet->data, packet->data_length);
+	cpy->data_length = packet->data_length;
+	cpy->crc = packet->crc;
+	cpy->type = packet->type;
+
+	return cpy;
+}
+
+
 static uint32_t _packet_crc(Packet packet)
 {
 	uint8_t crc_buf[packet->data_length + PACKET_HEADER_SIZE];
@@ -243,7 +255,7 @@ static uint8_t _get_packet_type_byte(PacketType type)
 			return USART_INIT_PACKET_BYTE;
 
 		case LOAD_MCU_INFO_PACKET:
-			return LOAC_MCU_INFO_BYTE;
+			return LOAD_MCU_INFO_BYTE;
 
 		case PGM_ENABLE_PACKET:
 			return PGM_ENABLE_PACKET_BYTE;
@@ -297,7 +309,7 @@ static PacketType _get_packet_type(uint8_t type_byte)
 		case USART_INIT_PACKET_BYTE:
 			return USART_INIT_PACKET;
 
-		case LOAC_MCU_INFO_BYTE:
+		case LOAD_MCU_INFO_BYTE:
 			return LOAD_MCU_INFO_PACKET;
 
 		case PGM_ENABLE_PACKET_BYTE:

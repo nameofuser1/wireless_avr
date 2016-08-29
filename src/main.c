@@ -28,7 +28,7 @@ int main(void)
 	{
 		if(!ESP8266_Ready())
 		{
-			LOGGING_Debug("Esp disconected");
+			LOGGING_Debug("Esp disconnected");
 			CONTROLLER_DeInit();
 			goto esp_wait_ready;
 		}
