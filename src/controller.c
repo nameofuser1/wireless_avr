@@ -50,7 +50,7 @@ void CONTROLLER_init(void)
 	 * also responsible for printf  */
 	EspUpdater_Init(115200);
 	LOGGING_SetLevel(LOG_INFO);
-	LOGGING_Info("Controller init\r\n");
+	LOGGING_Info("Controller init");
 
 	SoftwareTimer2_init();
 	SoftwareTimer2_set_duration(1);	//1 ms

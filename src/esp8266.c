@@ -117,11 +117,11 @@ static void usart_event_handler(uint32_t event)
 	{
 		if(esp_state == ESP_STATE_RECV_HEADERS)
 		{
-			LOGGING_Debug("IDLE Line while receiving headers");
+			LOGGING_Error("IDLE Line while receiving headers");
 		}
 		else
 		{
-			critical_error(SYSTEM_ERROR, "IDLE Line while receiving packet body");
+			system_error( "IDLE Line while receiving packet body");
 		}
 	}
 }
@@ -130,18 +130,25 @@ static void usart_event_handler(uint32_t event)
 void ESP8266_Init(void)
 {
 	ESP_Driver_Usart.Initialize((ARM_USART_SignalEvent_t)usart_event_handler);
-	ESP_Driver_Usart.Control(ARM_USART_MODE_ASYNCHRONOUS, ESP_USART_BAUDRATE);
-	ESP_Driver_Usart.Control(ARM_USART_CONTROL_TX | ARM_USART_CONTROL_RX, 1);
 	ESP_Driver_Usart.PowerControl(ARM_POWER_FULL);
+	ESP_Driver_Usart.Control(ARM_USART_MODE_ASYNCHRONOUS |
+							 ARM_USART_PARITY_NONE |
+							 ARM_USART_DATA_BITS_8 |
+							 ARM_USART_STOP_BITS_1 |
+							 ARM_USART_FLOW_CONTROL_NONE, ESP_USART_BAUDRATE);
+
+	ESP_Driver_Usart.Control(ARM_USART_CONTROL_TX ,1);
+	ESP_Driver_Usart.Control(ARM_USART_CONTROL_RX, 1);
+
 
 	if(!CircularBuffer_alloc(&outcome_packets_buffer, OUTCOME_PACKETS_BUFFER_SIZE))
 	{
-		critical_error(SYSTEM_ERROR_MEM, "Can't allocate outcome buffer");
+		memory_error( "Can't allocate outcome buffer");
 	}
 
 	if(!CircularBuffer_alloc(&income_packets_buffer, INCOME_PACKETS_BUFFER_SIZE))
 	{
-		critical_error(SYSTEM_ERROR_MEM, "Can't allocate income buffer");
+		memory_error( "Can't allocate income buffer");
 	}
 
 	PacketManager_init();

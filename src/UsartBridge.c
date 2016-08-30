@@ -88,12 +88,15 @@ void UsartBridge_Init(Packet usart_config)
 	if(!initialized)
 	{
 		UsartBridge_Driver.Initialize(usart_bridge_callback);
-		UsartBridge_Driver.Control(ARM_USART_CONTROL_RX | ARM_USART_CONTROL_TX, 1);
+		UsartBridge_Driver.PowerControl(ARM_POWER_FULL);
 
 		uint32_t baudrate = _set_baudrate(usart_config->data[USART_BAUDRATE_BYTE_OFFSET]);
 		_set_parity(usart_config->data[USART_PARITY_BYTE_OFFSET]);
 		_set_data_bits(usart_config->data[USART_DATA_BITS_BYTE_OFFSET]);
 		_set_stop_bits(usart_config->data[USART_STOP_BITS_BYTE_OFFSET]);
+
+		UsartBridge_Driver.Control(ARM_USART_CONTROL_RX, 1);
+		UsartBridge_Driver.Control(ARM_USART_CONTROL_TX, 1);
 
 		/* FRAME_SIZE_MS milliseconds of frame in bytes */
 		bridge_buffer_size = (baudrate * FRAME_SIZE_MS) / 1000 / 8;
@@ -102,7 +105,7 @@ void UsartBridge_Init(Packet usart_config)
 		/* Allocate buffer for sending packets */
 		CircularBuffer_alloc(&send_buffer, SEND_BUFFER_SIZE);
 
-		UsartBridge_Driver.PowerControl(ARM_POWER_FULL);
+
 		initialized = 1;
 	}
 }
@@ -144,7 +147,7 @@ void UsartBridge_Send(Packet usart_packet)
 {
 	if(!initialized)
 	{
-		system_error("Can't send over USART. UsartDriver is not initialized");
+		io_error("Can't send over USART. UsartDriver is not initialized");
 	}
 
 	Packet packet_cpy = PacketManager_Copy(usart_packet);
@@ -199,7 +202,7 @@ static uint32_t _set_baudrate(uint8_t baudrate_byte)
 	if(UsartBridge_Driver.Control(ARM_USART_MODE_ASYNCHRONOUS, baudrate) ==
 			ARM_USART_ERROR_MODE)
 	{
-		system_error("Can't set USART mode");
+		io_error("Can't set USART mode");
 	}
 
 	return baudrate;
@@ -225,12 +228,12 @@ static void _set_parity(uint8_t parity_byte)
 			break;
 
 		default:
-			system_error("Wrong parity byte");
+			io_error("Wrong parity byte");
 	}
 
 	if(UsartBridge_Driver.Control(parity, 1) == ARM_USART_ERROR_PARITY)
 	{
-		system_error("Can't set USART parity");
+		io_error("Can't set USART parity");
 	}
 }
 

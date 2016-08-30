@@ -28,7 +28,7 @@ void critical_error(uint8_t err, char *msg)
 
 	LOGGING_Error("Resetting device");
 	/* Small delay for delivering LOG message */
-	for(volatile uint32_t i=0; i<500000; i++);
+	for(volatile uint32_t i=0; i<10000000; i++);
 	NVIC_SystemReset();
 }
 

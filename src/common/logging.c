@@ -19,7 +19,7 @@ void LOGGING_Log(const char *message, const LogLevel lvl)
 {
 	if(lvl <= level)
 	{
-		printf("%s -- %s", levels_names[lvl], message);
+		printf("%s -- %s\r\n", levels_names[lvl], message);
 	}
 }
 

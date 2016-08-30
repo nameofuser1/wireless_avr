@@ -10,6 +10,9 @@
 #include "protocol.h"
 #include "system.h"
 #include "esp8266.h"
+#include "common/logging.h"
+
+#include <string.h>
 
 #include <USART_STM32F10x.h>
 
@@ -48,17 +51,16 @@ static void usart_callback(uint32_t event)
 			{
 				if(packet->data[0] == PACKET_CRC_ERROR)
 				{
-					critical_error(SYSTEM_ERROR, "CRC error");
+					system_error("CRC error");
 				}
 				else if(packet->data[0] == PACKET_TYPES_ERROR)
 				{
-					critical_error(SYSTEM_ERROR, "Unknown packet type");
+					system_error("Unknown packet type");
 				}
 			}
 			else if(packet->type != LOAD_NET_INFO_PACKET)
 			{
-					critical_error(SYSTEM_ERROR,
-							"Wrong packet type. NOT UNKNOWN. WRONG.");
+					system_error("Wrong packet type. NOT UNKNOWN. WRONG.");
 			}
 			else
 			{
@@ -75,13 +77,12 @@ static void usart_callback(uint32_t event)
 	{
 		if(state == STATE_RECEIVE_BODY)
 		{
-			critical_error(SYSTEM_ERROR, "Idle line while trying to "
+			critical_error(SYSTEM_ERROR_IO, "Idle line while trying to "
 					"receive body of EspUpdater packet");
 		}
 		else
 		{
-			critical_error(SYSTEM_ERROR, "Idle line in RECEIVE_HEADER "
-					"state in EspUpdater");
+			LOGGING_Error("Idle line in RECEIVE_HEADER state in EspUpdater");
 		}
 	}
 }
@@ -90,12 +91,19 @@ static void usart_callback(uint32_t event)
 void EspUpdater_Init(uint32_t baudrate)
 {
 	Driver_USART1.Initialize(usart_callback);
-	Driver_USART1.Control(ARM_USART_CONTROL_RX | ARM_USART_CONTROL_TX, 1);
-	Driver_USART1.Control(ARM_USART_MODE_ASYNCHRONOUS, baudrate);
 	Driver_USART1.PowerControl(ARM_POWER_FULL);
+	Driver_USART1.Control(ARM_USART_MODE_ASYNCHRONOUS |
+						  ARM_USART_DATA_BITS_8 |
+						  ARM_USART_STOP_BITS_1 |
+						  ARM_USART_PARITY_NONE |
+						  ARM_USART_FLOW_CONTROL_NONE, baudrate);
+
+	Driver_USART1.Control(ARM_USART_CONTROL_RX, 1);
+	Driver_USART1.Control(ARM_USART_CONTROL_TX, 1);
 
 	state = STATE_RECEIVE_HEADER;
 	Driver_USART1.Receive(in_buffer, PACKET_HEADER_SIZE);
+	USART1->CR1 &= ~(USART_CR1_IDLEIE);
 }
 
 
