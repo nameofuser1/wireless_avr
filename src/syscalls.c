@@ -9,6 +9,8 @@
 #include <sys/stat.h>
 
 #include <Driver_USART.h>
+#include <string.h>
+#include <stdlib.h>
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -19,6 +21,15 @@ extern int  _end;
 
 #define PRINTF_DRIVER Driver_USART1
 extern ARM_DRIVER_USART PRINTF_DRIVER;
+
+/*
+ * !!!IMPORTANT!!!
+ * We can't wait until log message is sent as it may take a long time
+ * So we can free memory only on the next _write call
+ * So be careful with sending big log messages
+ */
+static char *proc_data = NULL;
+static int  *data_len = 0;
 
 
 /*This function is used for handle heap option*/
@@ -91,14 +102,23 @@ int _read(int file, char *ptr, int len)
 }
 
 
-/*Low layer write(output) function*/
+/* Low layer write(output) function */
 __attribute__ ((used))
 int _write(int file, char *ptr, int len)
 {
-
+	(void)file;
 #if 1
-     (void)file;
-     while(PRINTF_DRIVER.Send((void*)ptr, len) == ARM_DRIVER_ERROR_BUSY);
+
+     while(PRINTF_DRIVER.GetStatus().tx_busy == 1);
+
+     if(proc_data != NULL)
+     {
+    	 free(proc_data);
+     }
+     proc_data = (char*)malloc(sizeof(char)*len);
+     memcpy(proc_data, ptr, len);
+
+     PRINTF_DRIVER.Send((void*)proc_data, len);
 #endif
 
     return len;
