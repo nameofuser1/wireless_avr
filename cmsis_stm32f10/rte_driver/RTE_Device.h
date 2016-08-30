@@ -13,8 +13,6 @@
 #define __RTE_DEVICE_H
 
 
-#define __STATIC_INLINE inline __attribute__((always_inline))
-
 #define GPIO_PORT(num) \
  ((num == 0) ? GPIOA : \
   (num == 1) ? GPIOB : \

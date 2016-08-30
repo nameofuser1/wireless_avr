@@ -74,6 +74,7 @@
 #define USART_STOP_BITS_ERROR_BYTE	0xE3
 #define USART_BAUDRATE_ERROR_BYTE	0xE4
 
+#pragma GCC diagnostic ignored "-Wunused-function"
 
 static uint32_t get_size_from_header(uint8_t *header)
 {

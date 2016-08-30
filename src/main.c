@@ -34,7 +34,8 @@ int main(void)
 		}
 
 		ResultCode code = CONTROLLER_perform_action();
-		ProgramState state = CONTROLLER_get_state();
+		//ProgramState state = CONTROLLER_get_state();
+
 		switch(code)
 		{
 			case NONE:
@@ -44,6 +45,9 @@ int main(void)
 				break;
 
 			case PROG_TYPE_ERROR:
+				break;
+
+			default:
 				break;
 		}
 	}

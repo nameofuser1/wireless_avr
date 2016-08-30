@@ -22,6 +22,7 @@
 
 #define PACKETS_TYPES_NUMBER	(NONE_PACKET)
 
+#pragma GCC diagnostic ignored "-Wunused-variable"
 
 /* For easy logging */
 static char* packet_names[PACKETS_TYPES_NUMBER] =
