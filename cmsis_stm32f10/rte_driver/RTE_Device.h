@@ -36,7 +36,7 @@
 //   <o> APB1 Clock   <1-999999999>
 #define RTE_PCLK1                       36000000
 //   <o> APB2 Clock   <1-999999999>
-#define RTE_PCLK2                       72000000
+#define RTE_PCLK2                       36000000
 //   <o> ADC Clock    <1-999999999>
 #define RTE_ADCCLK                      36000000
 //       USB Clock
