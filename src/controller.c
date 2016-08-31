@@ -32,6 +32,7 @@ static void load_cmd(Packet cmd_packet);
 static void prog_mem(Packet mem_packet);
 static void read_mem(Packet mem_info);
 static void _send_ack(void);
+static void handle_error(uint8_t error_byte);
 
 static	ProgrammerType CONTROLLER_get_prog_type(uint8_t byte);
 static 	ProgrammerType programmer_type = PROG_NONE;
@@ -78,6 +79,7 @@ ResultCode CONTROLLER_perform_action(void)
 {
 	if(ESP8266_Available())
 	{
+		LOGGING_Info("Controller ESP available");
 		current_packet = ESP8266_GetPacket();
 
 		/*
@@ -86,7 +88,10 @@ ResultCode CONTROLLER_perform_action(void)
 		 */
 		if(current_packet->type == ERROR_PACKET)
 		{
-
+			uint8_t error_byte = current_packet->data[0];
+			handle_error(error_byte);
+			PacketManager_free(current_packet);
+			current_packet = NULL;
 		}
 	}
 
@@ -116,6 +121,7 @@ static void CONTROLLER_state_ready(void)
 {
 	if(current_packet != NULL)
 	{
+		LOGGING_Info("Controller packet is not null");
 		switch(current_packet->type)
 		{
 			case AVR_PROG_INIT_PACKET:
@@ -385,5 +391,56 @@ static void _send_ack(void)
 	if(!ESP8266_SendAck())
 	{
 		io_error("Failed to send ack\r\n");
+	}
+}
+
+
+static void handle_error(uint8_t error_byte)
+{
+	switch(error_byte)
+	{
+		case PACKET_TYPES_ERROR:
+			system_error("Unknown packet");
+			break;
+
+		case PACKET_CRC_ERROR:
+			system_error("Wrong crc");
+			break;
+
+		case PACKET_HEADER_IDLE_LINE_ERROR:
+			io_error("Idle line on ESP rx line while receiving headers");
+			break;
+
+		case PACKET_BODY_IDLE_LINE_ERROR:
+			io_error("Idle line on ESP rx line while receiving body");
+			break;
+
+		case PACKET_RECEIVE_BUSY_ERROR:
+			io_error("ESP Receive busy");
+			break;
+
+		case PACKET_RECEIVE_PARAMETER_ERROR:
+			io_error("ESP Receive parameter error");
+			break;
+
+		case PACKET_SEND_BUSY_ERROR:
+			io_error("ESP Send busy error");
+			break;
+
+		case PACKET_SEND_PARAMETER_ERROR:
+			io_error("ESP send parameter error");
+			break;
+
+		case PACKET_UNKNOWN_DRIVER_ERROR:
+			io_error("ESP unknown driver error");
+			break;
+
+		case PACKET_MEMORY_ERROR:
+			memory_error("ESP memory error");
+			break;
+
+		case PACKET_LENGTH_ERROR:
+			system_error("Packet length error");
+			break;
 	}
 }

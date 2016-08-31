@@ -70,6 +70,18 @@ static void _free_packet_buf(PacketBuffer buf);
 
 static void usart_event_handler(uint32_t event)
 {
+	if(event & ARM_USART_EVENT_RX_TIMEOUT)
+	{
+		if(esp_state == ESP_STATE_RECV_HEADERS)
+		{
+			CircularBuffer_put(&income_packets_buffer, (void*)PacketManager_CreateErrorPacket(PACKET_HEADER_IDLE_LINE_ERROR));
+		}
+		else
+		{
+			CircularBuffer_put(&income_packets_buffer, (void*)PacketManager_CreateErrorPacket(PACKET_BODY_IDLE_LINE_ERROR));
+		}
+	}
+
 	if(event & ARM_USART_EVENT_SEND_COMPLETE)
 	{
 		_free_packet_buf(processing_packet);
@@ -93,35 +105,10 @@ static void usart_event_handler(uint32_t event)
 		else
 		{
 			Packet packet = PacketManager_parse(in_buffer);
-
-			if(packet->type == ERROR_PACKET)
-			{
-				if(packet->data[0] == PACKET_TYPES_ERROR)
-				{
-					system_error("Unknown packet");
-				}
-				else if(packet->data[0] == PACKET_CRC_ERROR)
-				{
-					system_error("Wrong crc");
-				}
-			}
-
 			CircularBuffer_put(&income_packets_buffer, (void*)packet);
 
 			receive_header();
 			esp_state = ESP_STATE_RECV_HEADERS;
-		}
-	}
-
-	if(event & ARM_USART_EVENT_RX_TIMEOUT)
-	{
-		if(esp_state == ESP_STATE_RECV_HEADERS)
-		{
-			LOGGING_Error("IDLE Line while receiving headers");
-		}
-		else
-		{
-			system_error( "IDLE Line while receiving packet body");
 		}
 	}
 }
@@ -140,6 +127,7 @@ void ESP8266_Init(void)
 	ESP_Driver_Usart.Control(ARM_USART_CONTROL_TX ,1);
 	ESP_Driver_Usart.Control(ARM_USART_CONTROL_RX, 1);
 
+	NVIC_EnableIRQ(ESP_USART_IRQn);
 
 	if(!CircularBuffer_alloc(&outcome_packets_buffer, OUTCOME_PACKETS_BUFFER_SIZE))
 	{
@@ -269,7 +257,8 @@ static void receive_header(void)
 		system_error("Can't receive packet headers");
 	}
 
-	ESP_USART_Typedef->CR1 &= ~(USART_CR1_IDLEIE);
+	LOGGING_Info("ESP Receiving header is started");
+	//ESP_USART_Typedef->CR1 &= ~(USART_CR1_IDLEIE);
 }
 
 
@@ -278,19 +267,52 @@ static void receive_header(void)
  */
 static void receive_body(uint32_t body_len)
 {
-	if(ESP_Driver_Usart.Receive(in_buffer+PACKET_HEADER_SIZE, body_len) != ARM_DRIVER_OK)
+	int32_t status = ESP_Driver_Usart.Receive(in_buffer+PACKET_HEADER_SIZE, body_len);
+	Packet err_packet = NULL;
+
+	switch(status)
 	{
-		system_error("Can't receive packet body");
+		case ARM_DRIVER_ERROR_BUSY:
+			err_packet = PacketManager_CreateErrorPacket(PACKET_RECEIVE_BUSY_ERROR);
+			break;
+
+		case ARM_DRIVER_ERROR_PARAMETER:
+			err_packet = PacketManager_CreateErrorPacket(PACKET_RECEIVE_PARAMETER_ERROR);
+			break;
+
+		case ARM_DRIVER_ERROR:
+			err_packet = PacketManager_CreateErrorPacket(PACKET_UNKNOWN_DRIVER_ERROR);
+	}
+
+	if(err_packet != NULL)
+	{
+		CircularBuffer_put(&income_packets_buffer, err_packet);
 	}
 }
 
 
 static void _send_packet(PacketBuffer packet)
 {
-	if(ESP_Driver_Usart.Send((void*)(packet->buf),
-			packet->length) != ARM_DRIVER_OK)
+	int32_t status = ESP_Driver_Usart.Send((void*)(packet->buf), packet->length);
+	Packet err_packet = NULL;
+
+	switch(status)
 	{
-		system_error("Can't send packet");
+		case ARM_DRIVER_ERROR_BUSY:
+			err_packet = PacketManager_CreateErrorPacket(PACKET_SEND_BUSY_ERROR);
+			break;
+
+		case ARM_DRIVER_ERROR_PARAMETER:
+			err_packet = PacketManager_CreateErrorPacket(PACKET_SEND_PARAMETER_ERROR);
+			break;
+
+		case ARM_DRIVER_ERROR:
+			err_packet = PacketManager_CreateErrorPacket(PACKET_UNKNOWN_DRIVER_ERROR);
+	}
+
+	if(err_packet != NULL)
+	{
+		CircularBuffer_put(&income_packets_buffer, (void*)err_packet);
 	}
 }
 

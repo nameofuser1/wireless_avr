@@ -29,7 +29,8 @@ static uint8_t state = STATE_RECEIVE_HEADER;
 
 /* Usart Driver_USART1 is set from out */
 //static ARM_Driver_USART1_USART Driver_USART1;
-extern ARM_DRIVER_USART Driver_USART1;
+#define EspUpdater_USART_IRQn	USART1_IRQn
+extern ARM_DRIVER_USART 		Driver_USART1;
 
 
 static void usart_callback(uint32_t event)
@@ -100,6 +101,8 @@ void EspUpdater_Init(uint32_t baudrate)
 
 	Driver_USART1.Control(ARM_USART_CONTROL_RX, 1);
 	Driver_USART1.Control(ARM_USART_CONTROL_TX, 1);
+
+	NVIC_EnableIRQ(EspUpdater_USART_IRQn);
 
 	state = STATE_RECEIVE_HEADER;
 	Driver_USART1.Receive(in_buffer, PACKET_HEADER_SIZE);
