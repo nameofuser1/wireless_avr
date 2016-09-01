@@ -98,7 +98,7 @@ static void usart_event_handler(uint32_t event)
 		if(esp_state == ESP_STATE_RECV_HEADERS)
 		{
 			uint32_t packet_size = get_size_from_header(in_buffer);
-			receive_body(packet_size);
+			receive_body(packet_size - PACKET_HEADER_SIZE);
 
 			esp_state = ESP_STATE_RECV_BODY;
 		}
@@ -258,7 +258,7 @@ static void receive_header(void)
 	}
 
 	LOGGING_Info("ESP Receiving header is started");
-	//ESP_USART_Typedef->CR1 &= ~(USART_CR1_IDLEIE);
+	ESP_USART_Typedef->CR1 &= ~(USART_CR1_IDLEIE);
 }
 
 
