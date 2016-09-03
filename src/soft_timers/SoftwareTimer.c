@@ -12,7 +12,7 @@
  * Init new timer
  * **********************************
  */
-void SoftwareTimer_init(SoftwareTimer *tim)
+void SoftwareTimer_init(SoftwareTimer_Resources *tim)
 {
 	tim->cb = NULL;
 	tim->state = Idle;
@@ -28,7 +28,7 @@ void SoftwareTimer_init(SoftwareTimer *tim)
  * time timer tick event occurs
  * *****************************************
  */
-void SoftwareTimer_add_cb(SoftwareTimer *tim, SoftTimerCallback cb)
+void SoftwareTimer_add_cb(SoftwareTimer_Resources *tim, SoftTimerCallback cb)
 {
 	tim->cb = cb;
 }
@@ -39,7 +39,7 @@ void SoftwareTimer_add_cb(SoftwareTimer *tim, SoftTimerCallback cb)
  * Preparing timer for start
  * *****************************************
  */
-void SoftwareTimer_arm(SoftwareTimer *tim, SoftTimerType type, uint32_t length)
+void SoftwareTimer_arm(SoftwareTimer_Resources *tim, SoftTimerType type, uint32_t length)
 {
 	tim->state = Idle;
     tim->type = type;
@@ -55,7 +55,7 @@ void SoftwareTimer_arm(SoftwareTimer *tim, SoftTimerType type, uint32_t length)
  * to update timer
  * ***********************************************
  */
-void SoftwareTimer_start(SoftTimerList *list, SoftwareTimer *timer)
+void SoftwareTimer_add_timer(HardwareTimerList *list, SoftwareTimer_Resources *timer)
 {
 	timer->state = Active;
 	uint32_t timer_length = timer->length;
@@ -74,7 +74,7 @@ void SoftwareTimer_start(SoftTimerList *list, SoftwareTimer *timer)
 		LinkedListNode *prev_node = list->head;
 		while(cur_node != NULL)
 		{
-			SoftwareTimer *tim = (SoftwareTimer*)cur_node->data;
+			SoftwareTimer_Resources *tim = (SoftwareTimer_Resources*)cur_node->data;
 			if(timer_length < tim->ticks)
 			{
 				new_node->next = cur_node;
@@ -97,13 +97,13 @@ void SoftwareTimer_start(SoftTimerList *list, SoftwareTimer *timer)
 }
 
 
-void SoftwareTimer_stop(SoftTimerList *list, SoftwareTimer *timer)
+void SoftwareTimer_remove_timer(HardwareTimerList *list, SoftwareTimer_Resources *timer)
 {
 	LinkedListNode *node = list->head;
 	LinkedListNode *prev_node = list->head;
 	while(node != NULL)
 	{
-		if((SoftwareTimer*)node->data == timer)
+		if((SoftwareTimer_Resources*)node->data == timer)
 		{
 			if(node == list->head)
 			{
@@ -130,7 +130,7 @@ void SoftwareTimer_stop(SoftTimerList *list, SoftwareTimer *timer)
  *
  * ********************************************
  */
-void SoftwareTimer_tick(SoftTimerList *list)
+void SoftwareTimer_tick(HardwareTimerList *list)
 {
     LinkedList done_timers;
     LinkedList_allocate(&done_timers);
@@ -138,7 +138,7 @@ void SoftwareTimer_tick(SoftTimerList *list)
 	LinkedListNode *prev_node = list->head;
 	while(node != NULL)
 	{
-		SoftwareTimer *tim = (SoftwareTimer*)(node->data);
+		SoftwareTimer_Resources *tim = (SoftwareTimer_Resources*)(node->data);
 		if(tim != NULL)
 		{
 			if(tim->ticks > 1)
@@ -176,11 +176,11 @@ void SoftwareTimer_tick(SoftTimerList *list)
 	prev_node = node;
 	while(node != NULL)
 	{
-        SoftwareTimer *tim = (SoftwareTimer*)(node->data);
+        SoftwareTimer_Resources *tim = (SoftwareTimer_Resources*)(node->data);
         if(tim->type == Timer_Repeat)
         {
             SoftwareTimer_arm(tim, tim->type, tim->length);
-            SoftwareTimer_start(list, tim);
+            SoftwareTimer_add_timer(list, tim);
         }
         prev_node = node;
         node = node->next;
@@ -196,7 +196,7 @@ void SoftwareTimer_tick(SoftTimerList *list)
  * For repeating timers please use callback
  * *******************************************
  */
-void SoftwareTimer_wait_for(SoftwareTimer *tim)
+void SoftwareTimer_wait_for(SoftwareTimer_Resources *tim)
 {
 	if(tim->state != Active)
 	{
@@ -210,11 +210,11 @@ void SoftwareTimer_wait_for(SoftwareTimer *tim)
 }
 
 
-void SoftwareTimer_delay_ms(SoftTimerList *list, uint32_t ms)
+void SoftwareTimer_delay_ms(HardwareTimerList *list, uint32_t ms)
 {
-	SoftwareTimer tim;
+	SoftwareTimer_Resources tim;
 	SoftwareTimer_init(&tim);
 	SoftwareTimer_arm(&tim, Timer_OnePulse, ms);
-	SoftwareTimer_start(list, &tim);
+	SoftwareTimer_add_timer(list, &tim);
 	SoftwareTimer_wait_for(&tim);
 }

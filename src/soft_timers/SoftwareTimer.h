@@ -11,7 +11,7 @@
 #include "common/LinkedList.h"
 
 typedef  void (*SoftTimerCallback)(void);
-typedef  LinkedList SoftTimerList;
+
 
 typedef enum {
 	Active,
@@ -25,7 +25,6 @@ typedef enum {
 } SoftTimerType;
 
 typedef struct {
-
 	SoftTimerState 		state;
 	SoftTimerType 		type;
 	SoftTimerCallback 	cb;
@@ -34,14 +33,11 @@ typedef struct {
 }	SoftwareTimer;
 
 
-void SoftwareTimer_init(SoftwareTimer *tim);
-void SoftwareTimer_add_cb(SoftwareTimer *tim, SoftTimerCallback cb);
-void SoftwareTimer_arm(SoftwareTimer *tim, SoftTimerType type, uint32_t length);
-void SoftwareTimer_start( SoftTimerList *list, SoftwareTimer *tim);
-void SoftwareTimer_stop(SoftTimerList *list, SoftwareTimer *timer);
-void SoftwareTimer_tick(SoftTimerList *tim_list);
-void SoftwareTimer_wait_for(SoftwareTimer *tim);
-void SoftwareTimer_delay_ms(SoftTimerList *list, uint32_t ms);
+void SoftwareTimer_Init(SoftwareTimer *tim);
+void SoftwareTimer_Add_cb(SoftwareTimer *tim, SoftTimerCallback cb);
+void SoftwareTimer_Arm(SoftwareTimer *tim, SoftTimerType type, uint32_t length);
+void SoftwareTimer_WaitFor(SoftwareTimer *tim);
+
 
 
 #endif /* SOFT_TIMERS_SOFTWARETIMER_H_ */

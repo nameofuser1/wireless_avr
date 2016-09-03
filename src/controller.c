@@ -12,7 +12,6 @@
 #include "avr_flasher.h"
 #include "EspUpdater.h"
 #include "UsartBridge.h"
-#include "soft_timers/SoftwareTimer2.h"
 #include "common/logging.h"
 
 #include "err.h"
@@ -20,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <soft_timers/HardwareTimer2.h>
 #include <stm32f10x_crc.h>
 
 
