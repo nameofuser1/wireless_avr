@@ -6,6 +6,7 @@
  */
 
 #include "logging.h"
+#include "system.h"
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -81,5 +82,25 @@ void LOGGING_SetLevel(LogLevel lvl)
 	level = lvl;
 }
 
+
+char* to_hex_str(uint8_t *buf, uint32_t len)
+{
+	const char *hex = "0123456789ABCDEF";
+	const char del = ' ';
+	char *out = (char*)sys_malloc(sizeof(char)*len*2 + 1);
+	uint8_t* pin = buf;
+
+	char * pout = out;
+	for(; pin < buf+len; pout +=3, pin++)
+	{
+		pout[0] = hex[(*pin>>4) & 0xF];
+		pout[1] = hex[ *pin     & 0xF];
+		pout[2] = del;
+	}
+
+	pout[-1] = 0;
+
+	return out;
+}
 
 

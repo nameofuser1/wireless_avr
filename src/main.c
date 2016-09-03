@@ -16,6 +16,18 @@ int main(void)
 	gpio_init();
 
 	/*
+	 * USART1 is used by printf so we have to be able to use
+	 * usart1 interrupt inside another one. By default every
+	 * interrupt has the highest priority. So we lower usart2
+	 * and usart3 priorities.
+	 *
+	 * Also we make usart2 prio lower then usart3 as usart3 is
+	 * responsible for communication with esp. Some speed up.
+	 */
+	NVIC_SetPriority(USART3_IRQn, 1);
+	NVIC_SetPriority(USART2_IRQn, 2);
+
+	/*
 	 * I know, I know...
 	 * But it's the best way at time
 	 */
@@ -33,23 +45,7 @@ int main(void)
 			goto esp_wait_ready;
 		}
 
-		ResultCode code = CONTROLLER_perform_action();
-		//ProgramState state = CONTROLLER_get_state();
-
-		switch(code)
-		{
-			case NONE:
-				break;
-
-			case INITIAL_ERROR:
-				break;
-
-			case PROG_TYPE_ERROR:
-				break;
-
-			default:
-				break;
-		}
+		CONTROLLER_perform_action();
 	}
 
     return 0;

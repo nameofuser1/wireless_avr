@@ -16,8 +16,9 @@
 #include "esp8266.h"
 #include "protocol.h"
 #include "transport.h"
-#include "common/logging.h"
+#include "err.h"
 #include "PacketManager.h"
+#include "common/logging.h"
 #include "common/CircularBuffer.h"
 #include <Driver_USART.h>
 
@@ -36,6 +37,7 @@
 #define ESP_USART_IRQn		USART3_IRQn
 #define ESP_Driver_Usart 	Driver_USART3
 
+/* Usart driver import */
 extern ARM_DRIVER_USART ESP_Driver_Usart;
 
 /* USART CONFIG */
@@ -70,18 +72,6 @@ static void _free_packet_buf(PacketBuffer buf);
 
 static void usart_event_handler(uint32_t event)
 {
-	if(event & ARM_USART_EVENT_RX_TIMEOUT)
-	{
-		if(esp_state == ESP_STATE_RECV_HEADERS)
-		{
-			CircularBuffer_put(&income_packets_buffer, (void*)PacketManager_CreateErrorPacket(PACKET_HEADER_IDLE_LINE_ERROR));
-		}
-		else
-		{
-			CircularBuffer_put(&income_packets_buffer, (void*)PacketManager_CreateErrorPacket(PACKET_BODY_IDLE_LINE_ERROR));
-		}
-	}
-
 	if(event & ARM_USART_EVENT_SEND_COMPLETE)
 	{
 		_free_packet_buf(processing_packet);
@@ -97,9 +87,8 @@ static void usart_event_handler(uint32_t event)
 	{
 		if(esp_state == ESP_STATE_RECV_HEADERS)
 		{
-			uint32_t packet_size = get_size_from_header(in_buffer);
-			receive_body(packet_size - PACKET_HEADER_SIZE);
-
+			uint32_t packet_size = get_size_from_header(in_buffer) - PACKET_HEADER_SIZE;
+			receive_body(packet_size);
 			esp_state = ESP_STATE_RECV_BODY;
 		}
 		else
@@ -107,10 +96,31 @@ static void usart_event_handler(uint32_t event)
 			Packet packet = PacketManager_parse(in_buffer);
 			CircularBuffer_put(&income_packets_buffer, (void*)packet);
 
-			receive_header();
 			esp_state = ESP_STATE_RECV_HEADERS;
+			receive_header();
 		}
 	}
+	else if(event & ARM_USART_EVENT_RX_TIMEOUT)
+	{
+		if(esp_state == ESP_STATE_RECV_HEADERS)
+		{
+			device_err = DEVICE_HEADER_IDLE_LINE_ERROR;
+		}
+		else
+		{
+			if(ESP_Driver_Usart.GetStatus().rx_busy == 1)
+			{
+				LOGGING_Error("Receive %" PRIu32 " bytes of body", ESP_Driver_Usart.GetRxCount());
+				device_err = DEVICE_BODY_IDLE_LINE_ERROR;
+			}
+		}
+	}
+
+	if(event & ARM_USART_EVENT_RX_OVERFLOW)
+	{
+		LOGGING_Error("RX overflow");
+	}
+
 }
 
 
@@ -252,13 +262,14 @@ Packet ESP8266_GetPacket(void)
  */
 static void receive_header(void)
 {
+	memset(in_buffer, '0', BODY_BUFFER_SIZE);
 	if(ESP_Driver_Usart.Receive(in_buffer, PACKET_HEADER_SIZE) != ARM_DRIVER_OK)
 	{
 		system_error("Can't receive packet headers");
 	}
 
-	LOGGING_Info("ESP Receiving header is started");
 	ESP_USART_Typedef->CR1 &= ~(USART_CR1_IDLEIE);
+	LOGGING_Info("ESP Receiving header is started");
 }
 
 
@@ -268,51 +279,42 @@ static void receive_header(void)
 static void receive_body(uint32_t body_len)
 {
 	int32_t status = ESP_Driver_Usart.Receive(in_buffer+PACKET_HEADER_SIZE, body_len);
-	Packet err_packet = NULL;
 
 	switch(status)
 	{
 		case ARM_DRIVER_ERROR_BUSY:
-			err_packet = PacketManager_CreateErrorPacket(PACKET_RECEIVE_BUSY_ERROR);
+			device_err = DEVICE_RECEIVE_BUSY_ERROR;
 			break;
 
 		case ARM_DRIVER_ERROR_PARAMETER:
-			err_packet = PacketManager_CreateErrorPacket(PACKET_RECEIVE_PARAMETER_ERROR);
+			device_err = DEVICE_RECEIVE_PARAMETER_ERROR;
 			break;
 
 		case ARM_DRIVER_ERROR:
-			err_packet = PacketManager_CreateErrorPacket(PACKET_UNKNOWN_DRIVER_ERROR);
+			device_err = DEVICE_UNKNOWN_DRIVER_ERROR;
+			break;
 	}
-
-	if(err_packet != NULL)
-	{
-		CircularBuffer_put(&income_packets_buffer, err_packet);
-	}
+	ESP_USART_Typedef->CR1 &= ~(USART_CR1_IDLEIE);
 }
 
 
 static void _send_packet(PacketBuffer packet)
 {
 	int32_t status = ESP_Driver_Usart.Send((void*)(packet->buf), packet->length);
-	Packet err_packet = NULL;
 
 	switch(status)
 	{
 		case ARM_DRIVER_ERROR_BUSY:
-			err_packet = PacketManager_CreateErrorPacket(PACKET_SEND_BUSY_ERROR);
+			device_err = DEVICE_SEND_BUSY_ERROR;
 			break;
 
 		case ARM_DRIVER_ERROR_PARAMETER:
-			err_packet = PacketManager_CreateErrorPacket(PACKET_SEND_PARAMETER_ERROR);
+			device_err = DEVICE_SEND_PARAMETER_ERROR;
 			break;
 
 		case ARM_DRIVER_ERROR:
-			err_packet = PacketManager_CreateErrorPacket(PACKET_UNKNOWN_DRIVER_ERROR);
-	}
-
-	if(err_packet != NULL)
-	{
-		CircularBuffer_put(&income_packets_buffer, (void*)err_packet);
+			device_err = DEVICE_UNKNOWN_DRIVER_ERROR;
+			break;
 	}
 }
 

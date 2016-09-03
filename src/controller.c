@@ -15,14 +15,17 @@
 #include "soft_timers/SoftwareTimer2.h"
 #include "common/logging.h"
 
+#include "err.h"
+
 #include <stdio.h>
+#include <string.h>
 #include <inttypes.h>
 #include <stm32f10x_crc.h>
 
 
 /* Controller states */
 static void CONTROLLER_state_ready(void);
-static void CONTROLLER_state_read_prog_init(void);
+static void CONTROLLER_state_read_mcu_info(void);
 static void CONTROLLER_state_read_cmd(void);
 static void CONTROLLER_state_terminate(void);
 static void CONTROLLER_state_failed(void);
@@ -32,17 +35,25 @@ static void load_cmd(Packet cmd_packet);
 static void prog_mem(Packet mem_packet);
 static void read_mem(Packet mem_info);
 static void _send_ack(void);
-static void handle_error(uint8_t error_byte);
+static void _send_packet(Packet p);
+static void _log_packet(Packet log_p);
+static void handle_error(uint32_t error_byte);
 
-static	ProgrammerType CONTROLLER_get_prog_type(uint8_t byte);
+/* Arduino or ISP */
+static	ProgrammerType _get_prog_type(uint8_t byte);
 static 	ProgrammerType programmer_type = PROG_NONE;
 
+/* Tracking state */
 static ProgramState state = READY;
-static ResultCode error = NONE;
 static void (*actions[CONTROLLER_ACTION_NUM])(void);
 
-
 static Packet current_packet = NULL;
+
+/* Initialize global error flag */
+uint32_t device_err = DEVICE_OK;
+
+/* From packet manager for logging */
+extern char *packet_names[NONE_PACKET];
 
 
 void CONTROLLER_init(void)
@@ -58,7 +69,7 @@ void CONTROLLER_init(void)
 	SoftwareTimer2_start();
 
 	actions[READY] = CONTROLLER_state_ready;
-	actions[READ_MCU_INFO] = CONTROLLER_state_read_prog_init;
+	actions[READ_MCU_INFO] = CONTROLLER_state_read_mcu_info;
 	actions[READ_CMD] = CONTROLLER_state_read_cmd;
 	actions[TERMINATE] = CONTROLLER_state_terminate;
 	actions[FAILED] = CONTROLLER_state_failed;
@@ -75,23 +86,31 @@ void CONTROLLER_DeInit(void)
 }
 
 
-ResultCode CONTROLLER_perform_action(void)
+uint32_t CONTROLLER_perform_action(void)
 {
+	if(device_err != DEVICE_OK)
+	{
+		state = FAILED;
+	}
+
 	if(ESP8266_Available())
 	{
-		LOGGING_Info("Controller ESP available");
 		current_packet = ESP8266_GetPacket();
+		LOGGING_Info("Controller got ESP packet");
 
-		/*
-		 * We do not receive Error packets
-		 * Error Packet means that we have parser error
-		 */
-		if(current_packet->type == ERROR_PACKET)
+		if(current_packet == NULL)
 		{
-			uint8_t error_byte = current_packet->data[0];
-			handle_error(error_byte);
-			PacketManager_free(current_packet);
-			current_packet = NULL;
+			LOGGING_Info("Current packet is null");
+			state = FAILED;
+		}
+		else
+		{
+			LOGGING_Info("Got %s packet", packet_names[current_packet->type]);
+
+			if(current_packet->type == LOG_PACKET)
+			{
+				_log_packet(current_packet);
+			}
 		}
 	}
 
@@ -103,7 +122,7 @@ ResultCode CONTROLLER_perform_action(void)
 		current_packet = NULL;
 	}
 
-	return error;
+	return device_err;
 }
 
 
@@ -121,7 +140,6 @@ static void CONTROLLER_state_ready(void)
 {
 	if(current_packet != NULL)
 	{
-		LOGGING_Info("Controller packet is not null");
 		switch(current_packet->type)
 		{
 			case AVR_PROG_INIT_PACKET:
@@ -131,7 +149,7 @@ static void CONTROLLER_state_ready(void)
 				UsartBridge_Stop();
 				UsartBridge_DeInit();
 
-				programmer_type = CONTROLLER_get_prog_type(current_packet->data[0]);
+				programmer_type = _get_prog_type(current_packet->data[0]);
 				state = READ_MCU_INFO;
 				break;
 
@@ -168,7 +186,7 @@ static void CONTROLLER_state_ready(void)
 				break;
 
 			default:
-				error = INITIAL_ERROR;
+				device_err = DEVICE_TYPES_ERROR;
 				state = FAILED;
 		}
 	}
@@ -181,7 +199,7 @@ static void CONTROLLER_state_ready(void)
  * corresponding programmer
  * *************************************************
  */
-static void CONTROLLER_state_read_prog_init(void)
+static void CONTROLLER_state_read_mcu_info(void)
 {
 	if(current_packet != NULL)
 	{
@@ -201,7 +219,7 @@ static void CONTROLLER_state_read_prog_init(void)
 			}
 			else
 			{
-				error = PROG_TYPE_ERROR;
+				device_err = DEVICE_PROGRAMMER_TYPE_ERROR;
 				state = FAILED;
 			}
 		}
@@ -232,7 +250,7 @@ static void CONTROLLER_state_read_cmd(void)
 		}
 		else
 		{
-			error = PACKET_TYPES_ERROR;
+			device_err = DEVICE_TYPES_ERROR;
 			state = FAILED;
 		}
 	}
@@ -254,17 +272,17 @@ static void load_cmd(Packet cmd_packet)
 			Packet result_packet = PacketManager_CreatePacket(res, AVR_CMD_SIZE, CMD_PACKET);
 			ESP8266_SendPacket(result_packet);
 			PacketManager_free(result_packet);
+
+			state = READ_CMD;
 		}
 		else
 		{
+			device_err = DEVICE_PROGRAMMING_ERROR;
 			state = FAILED;
 		}
 	}
 
-	if(state != FAILED)
-	{
-		state = READ_CMD;
-	}
+
 }
 
 
@@ -280,20 +298,15 @@ static void prog_mem(Packet mem_packet)
 		AvrProgMemData mem_data = AVRFlasher_get_prog_mem_data(mem_packet);
 		if(AVRFlasher_prog_memory(mem_data))
 		{
-			ESP8266_SendAck();
+			_send_ack();
+			free(mem_data.data);
+			state = READ_CMD;
 		}
 		else
 		{
-			error = IO_ERROR;
+			device_err = DEVICE_PROGRAMMING_ERROR;
 			state = FAILED;
 		}
-
-		free(mem_data.data);
-	}
-
-	if(state != FAILED)
-	{
-		state = READ_CMD;
 	}
 }
 
@@ -309,18 +322,10 @@ static void read_mem(Packet mem_info)
 	{
 		AvrReadMemData mem_data = AVRFlasher_get_read_mem_data(mem_info);
 		Packet memory_packet = AVRFlasher_read_mem(mem_data);
-
-		if(!ESP8266_SendPacket(memory_packet))
-		{
-			error = IO_ERROR;
-			state = FAILED;
-		}
-		else
-		{
-			state = READ_CMD;
-		}
-
+		_send_packet(memory_packet);
 		PacketManager_free(memory_packet);
+
+		state = READ_CMD;
 	}
 }
 
@@ -345,29 +350,11 @@ static void CONTROLLER_state_terminate(void)
  */
 static void CONTROLLER_state_failed(void)
 {
-	error = NONE;
-	state = READ_CMD;
-
-	if(error == INITIAL_ERROR)
-	{
-		system_error("Error while initializing device");
-	}
-	else if(error == PROG_TYPE_ERROR)
-	{
-		system_error("Unsupported programmer type");
-	}
-	else if(error == IO_ERROR)
-	{
-		io_error("Can't send command to avr");
-	}
-	else if(error == PACKET_TYPES_ERROR)
-	{
-		system_error("Wrong packet type");
-	}
+	handle_error(device_err);
 }
 
 
-ProgrammerType CONTROLLER_get_prog_type(uint8_t byte)
+ProgrammerType _get_prog_type(uint8_t byte)
 {
 	switch(byte)
 	{
@@ -395,52 +382,85 @@ static void _send_ack(void)
 }
 
 
-static void handle_error(uint8_t error_byte)
+static void _send_packet(Packet p)
+{
+	if(!ESP8266_SendPacket(p))
+	{
+		io_error("Failed to send packet");
+	}
+}
+
+
+static void _log_packet(Packet log_p)
+{
+	char str[log_p->data_length+1];
+	memcpy(str, log_p->data, log_p->data_length);
+	str[log_p->data_length+1] = '\0';
+	LOGGING_Debug("ESP LOG: %s", str);
+}
+
+
+static void handle_error(uint32_t error_byte)
 {
 	switch(error_byte)
 	{
-		case PACKET_TYPES_ERROR:
+		case DEVICE_TYPES_ERROR:
 			system_error("Unknown packet");
 			break;
 
-		case PACKET_CRC_ERROR:
+		case DEVICE_CRC_ERROR:
 			system_error("Wrong crc");
 			break;
 
-		case PACKET_HEADER_IDLE_LINE_ERROR:
+		case DEVICE_HEADER_IDLE_LINE_ERROR:
 			io_error("Idle line on ESP rx line while receiving headers");
 			break;
 
-		case PACKET_BODY_IDLE_LINE_ERROR:
+		case DEVICE_BODY_IDLE_LINE_ERROR:
 			io_error("Idle line on ESP rx line while receiving body");
 			break;
 
-		case PACKET_RECEIVE_BUSY_ERROR:
+		case DEVICE_RECEIVE_BUSY_ERROR:
 			io_error("ESP Receive busy");
 			break;
 
-		case PACKET_RECEIVE_PARAMETER_ERROR:
+		case DEVICE_RECEIVE_PARAMETER_ERROR:
 			io_error("ESP Receive parameter error");
 			break;
 
-		case PACKET_SEND_BUSY_ERROR:
+		case DEVICE_SEND_BUSY_ERROR:
 			io_error("ESP Send busy error");
 			break;
 
-		case PACKET_SEND_PARAMETER_ERROR:
+		case DEVICE_SEND_PARAMETER_ERROR:
 			io_error("ESP send parameter error");
 			break;
 
-		case PACKET_UNKNOWN_DRIVER_ERROR:
+		case DEVICE_UNKNOWN_DRIVER_ERROR:
 			io_error("ESP unknown driver error");
 			break;
 
-		case PACKET_MEMORY_ERROR:
+		case DEVICE_MEMORY_ERROR:
 			memory_error("ESP memory error");
 			break;
 
-		case PACKET_LENGTH_ERROR:
+		case DEVICE_LENGTH_ERROR:
 			system_error("Packet length error");
 			break;
+
+		case DEVICE_PROGRAMMER_TYPE_ERROR:
+			system_error("Unsupported programmer type");
+			break;
+
+		case DEVICE_INITIALIZATION_ERROR:
+			system_error("Error while initializing device");
+			break;
+
+		case DEVICE_PROGRAMMING_ERROR:
+			system_error("Programming error");
+			break;
+
+		default:
+			system_error("Unknown error code");
 	}
 }

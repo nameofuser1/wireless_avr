@@ -88,4 +88,10 @@ static uint32_t get_size_from_header(uint8_t *header)
 	return size;
 }
 
+
+static uint8_t get_type_from_header(uint8_t *header)
+{
+	return header[TYPE_FIELD_OFFSET];
+}
+
 #endif /* SRC_PROTOCOL_H_ */

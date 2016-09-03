@@ -11,13 +11,17 @@
 #include <stm32f10x.h>
 #include <core_cm3.h>
 
+#define SYSTEM_ERROR		0
+#define SYSTEM_ERROR_MEM	1
+#define SYSTEM_ERROR_IO		2
+#define SYSTEM_ERRORS_NUM	3
 
 static char* errors[SYSTEM_ERRORS_NUM] = {"System error", "Memory error", "IO error"};
 
 /*
  * 	Restart controller
  */
-void critical_error(uint8_t err, char *msg)
+static void critical_error(uint8_t err, char *msg)
 {
 	LOGGING_Error(errors[err]);
 

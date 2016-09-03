@@ -48,18 +48,7 @@ static void usart_callback(uint32_t event)
 		{
 			Packet packet = PacketManager_parse(in_buffer);
 
-			if(packet->type == ERROR_PACKET)
-			{
-				if(packet->data[0] == PACKET_CRC_ERROR)
-				{
-					system_error("CRC error");
-				}
-				else if(packet->data[0] == PACKET_TYPES_ERROR)
-				{
-					system_error("Unknown packet type");
-				}
-			}
-			else if(packet->type != LOAD_NET_INFO_PACKET)
+			if(packet->type != LOAD_NET_INFO_PACKET)
 			{
 					system_error("Wrong packet type. NOT UNKNOWN. WRONG.");
 			}
@@ -78,7 +67,7 @@ static void usart_callback(uint32_t event)
 	{
 		if(state == STATE_RECEIVE_BODY)
 		{
-			critical_error(SYSTEM_ERROR_IO, "Idle line while trying to "
+			io_error("Idle line while trying to "
 					"receive body of EspUpdater packet");
 		}
 		else

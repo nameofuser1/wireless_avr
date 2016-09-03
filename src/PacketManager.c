@@ -10,6 +10,7 @@
 #include "esp8266.h"
 #include "system.h"
 #include "protocol.h"
+#include "err.h"
 #include "common/logging.h"
 
 #include <stdio.h>
@@ -25,7 +26,7 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
 /* For easy logging */
-static char* packet_names[PACKETS_TYPES_NUMBER] =
+char *packet_names[PACKETS_TYPES_NUMBER] =
 {
 	"ProgInit", "Stop", 		"Cmd", 			"Reset", 		"Error", 	"ProgMem", "ReadMem",
 	"Usart", 	"UsartInit", 	"AvrProgInit",  "PGM enable", 	"ACK", 		"Memory",  "LOG",
@@ -63,24 +64,33 @@ Packet PacketManager_parse(uint8_t *packet_buffer)
 		packet_len |= ((packet_buffer[i]) << 8*(SIZE_FIELD_SIZE - i - 1));
 	}
 
+	uint32_t data_length = packet_len - PACKET_RESERVED_BYTES;
+	uint8_t data_offset = PACKET_HEADER_SIZE;
+
 	uint8_t type_byte = packet_buffer[SIZE_FIELD_SIZE];	// next byte after size field
 	PacketType packet_type = _get_packet_type(type_byte);
 
 	if(packet_type == NONE_PACKET)
 	{
-		return PacketManager_CreateErrorPacket(PACKET_TYPES_ERROR);
+		device_err = DEVICE_TYPES_ERROR;
+		return NULL;
 	}
+
 
 	if(packet_type != LOG_PACKET)
 	{
 		if(!_check_crc(packet_buffer, packet_len))
 		{
-			return PacketManager_CreateErrorPacket(PACKET_CRC_ERROR);
+			device_err = DEVICE_CRC_ERROR;
+			return NULL;
 		}
 	}
+	else
+	{
+		data_length = packet_len - PACKET_HEADER_SIZE;
+	}
 
-	uint32_t data_length =  packet_len - PACKET_RESERVED_BYTES;
-	uint8_t data_offset = PACKET_HEADER_SIZE;
+
 
 	uint8_t *packet_data = packet_buffer+data_offset;
 	Packet packet = PacketManager_CreatePacket(packet_data, data_length, packet_type);
@@ -121,7 +131,7 @@ Packet	PacketManager_CreatePacket(uint8_t *data, uint16_t data_len, PacketType t
 {
 	if(data_len > MAX_PACKET_LENGTH)
 	{
-		critical_error(SYSTEM_ERROR, "Packet length is over max");
+		system_error("Wrong packet length");
 	}
 
 	Packet packet = (Packet)sys_malloc(sizeof(struct _packet));
@@ -159,7 +169,7 @@ uint8_t* PacketManager_Packet2Buf(Packet packet, uint32_t *bytes)
 
 	if(type_byte == NONE_PACKET_BYTE)
 	{
-		critical_error(SYSTEM_ERROR, "Wrong packet type");
+		system_error("Wrong packet type");
 	}
 
 	buf[0] = (packet->data_length >> 8) & 0xFF;
@@ -200,7 +210,7 @@ static uint32_t _packet_crc(Packet packet)
 	int8_t packet_type_byte = _get_packet_type_byte(packet->type);
 	if(packet_type_byte == -1)
 	{
-		critical_error(SYSTEM_ERROR, "Wrong packet byte");
+		system_error("Wrong packet byte");
 	}
 
 	crc_buf[2] = (uint8_t)packet_type_byte;
