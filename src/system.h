@@ -10,6 +10,9 @@
 
 #include <inttypes.h>
 
+#define SystemTimer	TIMER2_Driver
+
+void 	system_init(void);
 void	system_error(char *msg);
 void	memory_error(char *msg);
 void 	io_error(char *msg);

@@ -40,6 +40,8 @@ static uint8_t 		_get_packet_type_byte(PacketType type);
 static PacketType 	_get_packet_type(uint8_t type_byte);
 
 
+extern uint32_t device_err;
+
 
 void PacketManager_init(void)
 {

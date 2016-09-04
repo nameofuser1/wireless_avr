@@ -6,44 +6,44 @@
  */
 
 
-#include <HardwareTimer.h>
+#include "HardwareTimer.h"
 
 /* Static methods */
-static void timer_tick(HardwareTimerResources timer);
+static void timer_tick(HardwareTimerResources *timer);
 
 
 /*
  * Initialization doesn't provide any options now
  */
-void HardwareTimer_Init(HardwareTimerResources timer, uint32_t prescaler)
+void HardwareTimer_Init(HardwareTimerResources *timer, uint16_t prescaler)
 {
-	timer.io_tim->PSC = prescaler;								//clock prescaler
-	timer.io_tim->DIER |= TIM_DIER_UIE;						//update interrupt enable
-	timer.io_tim->CR1 &= (~TIM_CR1_OPM | TIM_CR1_ARPE);		//periodic mode
+	timer->io_tim->PSC = prescaler;								//clock prescaler
+	timer->io_tim->DIER |= TIM_DIER_UIE;						//update interrupt enable
+	timer->io_tim->CR1 &= (~TIM_CR1_OPM | TIM_CR1_ARPE);		//periodic mode
 }
 
 /*
  * Enable timer
  */
-void HardwareTimer_Start(HardwareTimerResources timer)
+void HardwareTimer_Start(HardwareTimerResources *timer)
 {
-	timer.io_tim->CR1 |= TIM_CR1_CEN;
+	timer->io_tim->CR1 |= TIM_CR1_CEN;
 }
 
 /*
  * Disable timer
  */
-void HardwareTimer_Stop(HardwareTimerResources timer)
+void HardwareTimer_Stop(HardwareTimerResources *timer)
 {
-	timer.io_tim->CR1 &= ~TIM_CR1_CEN;
+	timer->io_tim->CR1 &= ~TIM_CR1_CEN;
 }
 
 /*
  * Set auto-reload register
  */
-void HardwareTimer_SetDuration(HardwareTimerResources timer, uint16_t duration)
+void HardwareTimer_SetDuration(HardwareTimerResources *timer, uint16_t duration)
 {
-	timer.io_tim->ARR = duration;
+	timer->io_tim->ARR = duration;
 }
 
 
@@ -54,34 +54,34 @@ void HardwareTimer_SetDuration(HardwareTimerResources timer, uint16_t duration)
  * to update timer
  * ***********************************************
  */
-void HardwareTimer_AddTimer(HardwareTimerResources h_timer, SoftwareTimer *timer)
+void HardwareTimer_AddTimer(HardwareTimerResources *h_timer, SoftwareTimer *timer)
 {
-	HardwareTimerList list = h_timer.timers;
+	HardwareTimerList *list = h_timer->timers;
 
-	timer.state = Active;
-	uint32_t timer_length = timer.length;
+	timer->state = Timer_Active;
+	uint32_t timer_length = timer->length;
 	LinkedListNode *new_node = (LinkedListNode*)malloc(sizeof(LinkedListNode));
 	new_node->data = (void*)timer;
 	new_node->next = NULL;
 
-	if(list.head == NULL)
+	if(list->head == NULL)
 	{
-		list.head = new_node;
+		list->head = new_node;
 		return;
 	}
 	else
 	{
-		LinkedListNode *cur_node = list.head;
-		LinkedListNode *prev_node = list.head;
+		LinkedListNode *cur_node = list->head;
+		LinkedListNode *prev_node = list->head;
 		while(cur_node != NULL)
 		{
 			SoftwareTimer *tim = (SoftwareTimer*)cur_node->data;
 			if(timer_length < tim->ticks)
 			{
 				new_node->next = cur_node;
-				if(cur_node == list.head)
+				if(cur_node == list->head)
 				{
-					list.head = new_node;
+					list->head = new_node;
 				}
 				else
 				{
@@ -100,19 +100,19 @@ void HardwareTimer_AddTimer(HardwareTimerResources h_timer, SoftwareTimer *timer
 /*
  * Remove software timer from timers list
  */
-void HardwareTimer_RemoveTimer(HardwareTimerResources h_timer, SoftwareTimer *timer)
+void HardwareTimer_RemoveTimer(HardwareTimerResources *h_timer, SoftwareTimer *timer)
 {
-	HardwareTimerList list = h_timer.timers;
+	HardwareTimerList *list = h_timer->timers;
 
-	LinkedListNode *node = list.head;
-	LinkedListNode *prev_node = list.head;
+	LinkedListNode *node = list->head;
+	LinkedListNode *prev_node = list->head;
 	while(node != NULL)
 	{
 		if((SoftwareTimer*)node->data == timer)
 		{
-			if(node == list.head)
+			if(node == list->head)
 			{
-				list.head = node->next;
+				list->head = node->next;
 			}
 			else
 			{
@@ -125,32 +125,30 @@ void HardwareTimer_RemoveTimer(HardwareTimerResources h_timer, SoftwareTimer *ti
 			prev_node = node;
 		}
 	}
-	timer.state = Idle;
+	timer->state = Timer_Idle;
 }
 
 
 /*
  * Simple delay in MS
  */
-void HardwareTimer_DelayMs(HardwareTimerResources timer, uint32_t ms)
+void HardwareTimer_DelayMs(HardwareTimerResources *timer, uint32_t ms)
 {
-	HardwareTimerList list = timer.timers;
-
 	SoftwareTimer tim;
 	SoftwareTimer_Init(&tim);
 	SoftwareTimer_Arm(&tim, Timer_OnePulse, ms);
-	HardwareTimer_AddTimer(list, &tim);
+	HardwareTimer_AddTimer(timer, &tim);
 	SoftwareTimer_WaitFor(&tim);
 }
 
 
 /* Check only for update interrupt flag */
-void HardwareTimer_IRQHandler(HardwareTimerResources timer)
+void HardwareTimer_IRQHandler(HardwareTimerResources *timer)
 {
-	if(timer.io_tim->SR & TIM_SR_UIF)
+	if(timer->io_tim->SR & TIM_SR_UIF)
 	{
 		timer_tick(timer);
-		timer.io_tim->SR &= ~TIM_SR_UIF;
+		timer->io_tim->SR &= ~TIM_SR_UIF;
 	}
 }
 
@@ -161,14 +159,14 @@ void HardwareTimer_IRQHandler(HardwareTimerResources timer)
  *
  * ********************************************
  */
-static void timer_tick(HardwareTimerResources timer)
+static void timer_tick(HardwareTimerResources *timer)
 {
-	HardwareTimerList list = timer.timers;
+	HardwareTimerList *list = timer->timers;
 
     LinkedList done_timers;
     LinkedList_allocate(&done_timers);
-	LinkedListNode *node = list.head;
-	LinkedListNode *prev_node = list.head;
+	LinkedListNode *node = list->head;
+	LinkedListNode *prev_node = list->head;
 	while(node != NULL)
 	{
 		SoftwareTimer *tim = (SoftwareTimer*)(node->data);
@@ -187,13 +185,13 @@ static void timer_tick(HardwareTimerResources timer)
 					tim->cb();
 				}
 
-				tim->state = Done;
+				tim->state = Timer_Done;
 				LinkedList_add(&done_timers, (void*)tim);
-				if(node == list.head)
+				if(node == list->head)
 				{
-					list.head = node->next;
+					list->head = node->next;
 					free(node);
-					node = list.head;
+					node = list->head;
 				}
 				else
 				{
@@ -213,7 +211,7 @@ static void timer_tick(HardwareTimerResources timer)
         if(tim->type == Timer_Repeat)
         {
             SoftwareTimer_Arm(tim, tim->type, tim->length);
-            HardwareTimer_AddTimer(list, tim);
+            HardwareTimer_AddTimer(timer, tim);
         }
         prev_node = node;
         node = node->next;
@@ -225,26 +223,26 @@ static void timer_tick(HardwareTimerResources timer)
  * Timer 2 driver definition
  */
 
-static HardwareTimerList	tim2_list;
+static HardwareTimerList		tim2_list;
+static HardwareTimerResources	tim2_resources;
 
-static HardwareTimerResources	tim2_resources = {
-		.timers = tim2_list,
-		.io_tim = TIM2
-};
-
-static void HardwareTimer2_init(void)
+static void HardwareTimer2_init(uint16_t prescaler)
 {
 	RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
 	NVIC_EnableIRQ(TIM2_IRQn);
-	HardwareTimer_Init(tim2_resources);
+
+	tim2_resources.timers = &tim2_list;
+	tim2_resources.io_tim = TIM2;
+
+	HardwareTimer_Init(&tim2_resources, prescaler);
 }
 
-static void HardwareTimer2_start(void) { HardwareTimer_Start(tim2_resources); }
-static void HardwareTimer2_stop(void) { HardwareTimer_Stop(tim2_resources); }
-static void HardwareTimer2_set_duration(uint16_t duration) { HardwareTimer_SetDuration(tim2_resources, duration); }
-static void HardwareTimer2_add_timer(SoftwareTimer *tim) { HardwareTimer_AddTimer(tim2_resources, tim); }
-static void HardwareTimer2_remove_timer(SoftwareTimer *tim) { HardwareTimer_RemoveTimer(tim2_resources, tim); }
-static void HardwareTimer2_delay(uint16_t ms) { HardwareTimer_DelayMs(tim2_resources, ms); }
+static void HardwareTimer2_start(void) { HardwareTimer_Start(&tim2_resources); }
+static void HardwareTimer2_stop(void) { HardwareTimer_Stop(&tim2_resources); }
+static void HardwareTimer2_set_duration(uint16_t duration) { HardwareTimer_SetDuration(&tim2_resources, duration); }
+static void HardwareTimer2_add_timer(SoftwareTimer *tim) { HardwareTimer_AddTimer(&tim2_resources, tim); }
+static void HardwareTimer2_remove_timer(SoftwareTimer *tim) { HardwareTimer_RemoveTimer(&tim2_resources, tim); }
+static void HardwareTimer2_delay(uint16_t ms) { HardwareTimer_DelayMs(&tim2_resources, ms); }
 
 
 HardwareTimerDriver		TIMER2_Driver = {
@@ -261,7 +259,7 @@ HardwareTimerDriver		TIMER2_Driver = {
 /* Interrupts */
 void TIM2_IRQHandler(void)
 {
-	HardwareDriver_IRQHandler(tim2_resources);
+	HardwareTimer_IRQHandler(&tim2_resources);
 }
 
 

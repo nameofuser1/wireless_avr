@@ -15,7 +15,7 @@
 void SoftwareTimer_Init(SoftwareTimer *tim)
 {
 	tim->cb = NULL;
-	tim->state = Idle;
+	tim->state = Timer_Idle;
 	tim->ticks = 0;
 	tim->type = Timer_OnePulse;
 	tim->length = 0;
@@ -41,7 +41,7 @@ void SoftwareTimer_Add_cb(SoftwareTimer *tim, SoftTimerCallback cb)
  */
 void SoftwareTimer_Arm(SoftwareTimer *tim, SoftTimerType type, uint32_t length)
 {
-	tim->state = Idle;
+	tim->state = Timer_Idle;
     tim->type = type;
 	tim->length = length;
 	tim->ticks = length;
@@ -56,16 +56,16 @@ void SoftwareTimer_Arm(SoftwareTimer *tim, SoftTimerType type, uint32_t length)
  * For repeating timers please use callback
  * *******************************************
  */
-void SoftwareTimer_wait_for(SoftwareTimer *tim)
+void SoftwareTimer_WaitFor(SoftwareTimer *tim)
 {
-	if(tim->state != Active)
+	if(tim->state != Timer_Active)
 	{
 		return;
 	}
 
 	if(tim->type == Timer_OnePulse)
 	{
-		while(tim->state != Done);
+		while(tim->state != Timer_Done);
 	}
 }
 

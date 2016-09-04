@@ -14,9 +14,9 @@ typedef  void (*SoftTimerCallback)(void);
 
 
 typedef enum {
-	Active,
-	Idle,
-	Done
+	Timer_Active,
+	Timer_Idle,
+	Timer_Done
 } SoftTimerState;
 
 typedef enum {

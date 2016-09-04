@@ -2,9 +2,31 @@
 #include "controller.h"
 #include "common/logging.h"
 #include "esp8266.h"
+#include "system.h"
+#include "soft_timers/HardwareTimer.h"
+#include "soft_timers/SoftwareTimer.h"
+#include "EspUpdater.h"
 
 void CLOCK_init(void);
 static void gpio_init(void);
+
+extern HardwareTimerDriver SystemTimer;
+
+uint8_t state = 0;
+
+static void reset_pin_cb(void)
+{
+	if(!state)
+	{
+		GPIOA->BSRR |= GPIO_BSRR_BS8;
+		state = 1;
+	}
+	else
+	{
+		GPIOA->BSRR |= GPIO_BSRR_BR8;
+		state = 0;
+	}
+}
 
 
 int main(void)
@@ -13,7 +35,25 @@ int main(void)
 	__enable_fault_irq();
 	__enable_irq();
 
+	system_init();
 	gpio_init();
+	EspUpdater_Init(115200);
+	LOGGING_SetLevel(LOG_INFO);
+
+	NVIC_EnableIRQ(TIM2_IRQn);
+
+	SoftwareTimer pin_timer;
+	SoftwareTimer_Init(&pin_timer);
+	SoftwareTimer_Add_cb(&pin_timer, reset_pin_cb);
+	SoftwareTimer_Arm(&pin_timer, Timer_Repeat, 25);
+	SystemTimer.AddTimer(&pin_timer);
+
+	while(1)
+	{
+		LOGGING_Info("LOG WAITING");
+		SystemTimer.Delay(25);
+	}
+
 
 	/*
 	 * USART1 is used by printf so we have to be able to use

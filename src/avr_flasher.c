@@ -12,7 +12,6 @@
 #include <periph/spi.h>
 #include <stm32f10x.h>
 #include <inttypes.h>
-#include <soft_timers/HardwareTimer2.h>
 
 #define FLASH_MEMORY_BYTE 	0x00
 #define EEPROM_MEMORY_BYTE	0x01
@@ -349,8 +348,7 @@ bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
 
 		if(delay)
 		{
-			SoftwareTimer
-_DelayM(&soft_timer2, mcu_info.flash_wait_ms);
+			//SoftwareTimer_DelayMs(&soft_timer2, mcu_info.flash_wait_ms);
 		}
 
 		AVRFlasher_create_memory_cmd(mcu_info.flash_load_hi_pattern, mcu_info.flash_load_hi_len,
@@ -359,8 +357,7 @@ _DelayM(&soft_timer2, mcu_info.flash_wait_ms);
 
 		if(delay)
 		{
-			SoftwareTimer
-_DelayM(&soft_timer2, mcu_info.flash_wait_ms);
+			//SoftwareTimer_DelayMs(&soft_timer2, mcu_info.flash_wait_ms);
 		}
 
 		AVRFlasher_create_memory_cmd(mcu_info.flash_load_lo_pattern, mcu_info.flash_load_lo_len,
@@ -453,8 +450,7 @@ Packet AVRFlasher_pgm_enable(void)
 	uint8_t success[1] = {0};
 
 	AVRFlasher_reset_enable();
-	SoftwareTimer
-_DelayM(&soft_timer2, DELAY_AFTER_RESET_MS);
+	//SoftwareTimer_DelayMs(&soft_timer2, DELAY_AFTER_RESET_MS);
 
 	for(uint32_t i=0; i<PGM_ENABLE_RETRIES; i++)
 	{
@@ -471,8 +467,7 @@ _DelayM(&soft_timer2, DELAY_AFTER_RESET_MS);
 			AVRFlasher_reset_disable();
 			//SPI1_disable();
 			//pull_sck_up();
-			SoftwareTimer
-_DelayM(&soft_timer2, DELAY_AFTER_RESET_MS);
+			//SoftwareTimer_DelayMs(&soft_timer2, DELAY_AFTER_RESET_MS);
 			//pull_sck_down();
 			//SPI1_enable();
 			AVRFlasher_reset_enable();

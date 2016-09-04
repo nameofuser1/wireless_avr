@@ -17,9 +17,8 @@
 #include "err.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
-#include <soft_timers/HardwareTimer2.h>
 #include <stm32f10x_crc.h>
 
 
@@ -37,7 +36,6 @@ static void read_mem(Packet mem_info);
 static void _send_ack(void);
 static void _send_packet(Packet p);
 static void _log_packet(Packet log_p);
-static void handle_error(uint32_t error_byte);
 
 /* Arduino or ISP */
 static	ProgrammerType _get_prog_type(uint8_t byte);
@@ -49,8 +47,8 @@ static void (*actions[CONTROLLER_ACTION_NUM])(void);
 
 static Packet current_packet = NULL;
 
-/* Initialize global error flag */
-uint32_t device_err = DEVICE_OK;
+/* Import global error flag */
+extern uint32_t device_err;
 
 /* From packet manager for logging */
 extern char *packet_names[NONE_PACKET];
@@ -63,10 +61,6 @@ void CONTROLLER_init(void)
 	EspUpdater_Init(115200);
 	LOGGING_SetLevel(LOG_INFO);
 	LOGGING_Info("Controller init");
-
-	SoftwareTimer2_init();
-	SoftwareTimer2_set_duration(1);	//1 ms
-	SoftwareTimer2_start();
 
 	actions[READY] = CONTROLLER_state_ready;
 	actions[READ_MCU_INFO] = CONTROLLER_state_read_mcu_info;
@@ -88,11 +82,6 @@ void CONTROLLER_DeInit(void)
 
 uint32_t CONTROLLER_perform_action(void)
 {
-	if(device_err != DEVICE_OK)
-	{
-		state = FAILED;
-	}
-
 	if(ESP8266_Available())
 	{
 		current_packet = ESP8266_GetPacket();
@@ -339,6 +328,8 @@ static void read_mem(Packet mem_info)
 static void CONTROLLER_state_terminate(void)
 {
 	ESP8266_DeInit();
+	UsartBridge_Stop();
+	UsartBridge_DeInit();
 	state = READY;
 }
 
@@ -350,7 +341,12 @@ static void CONTROLLER_state_terminate(void)
  */
 static void CONTROLLER_state_failed(void)
 {
-	handle_error(device_err);
+	ESP8266_DeInit();
+	UsartBridge_Stop();
+	UsartBridge_DeInit();
+
+	/* Waiting for system_irq */
+	while(1);
 }
 
 
@@ -400,67 +396,4 @@ static void _log_packet(Packet log_p)
 }
 
 
-static void handle_error(uint32_t error_byte)
-{
-	switch(error_byte)
-	{
-		case DEVICE_TYPES_ERROR:
-			system_error("Unknown packet");
-			break;
 
-		case DEVICE_CRC_ERROR:
-			system_error("Wrong crc");
-			break;
-
-		case DEVICE_HEADER_IDLE_LINE_ERROR:
-			io_error("Idle line on ESP rx line while receiving headers");
-			break;
-
-		case DEVICE_BODY_IDLE_LINE_ERROR:
-			io_error("Idle line on ESP rx line while receiving body");
-			break;
-
-		case DEVICE_RECEIVE_BUSY_ERROR:
-			io_error("ESP Receive busy");
-			break;
-
-		case DEVICE_RECEIVE_PARAMETER_ERROR:
-			io_error("ESP Receive parameter error");
-			break;
-
-		case DEVICE_SEND_BUSY_ERROR:
-			io_error("ESP Send busy error");
-			break;
-
-		case DEVICE_SEND_PARAMETER_ERROR:
-			io_error("ESP send parameter error");
-			break;
-
-		case DEVICE_UNKNOWN_DRIVER_ERROR:
-			io_error("ESP unknown driver error");
-			break;
-
-		case DEVICE_MEMORY_ERROR:
-			memory_error("ESP memory error");
-			break;
-
-		case DEVICE_LENGTH_ERROR:
-			system_error("Packet length error");
-			break;
-
-		case DEVICE_PROGRAMMER_TYPE_ERROR:
-			system_error("Unsupported programmer type");
-			break;
-
-		case DEVICE_INITIALIZATION_ERROR:
-			system_error("Error while initializing device");
-			break;
-
-		case DEVICE_PROGRAMMING_ERROR:
-			system_error("Programming error");
-			break;
-
-		default:
-			system_error("Unknown error code");
-	}
-}

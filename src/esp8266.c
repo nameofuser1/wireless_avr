@@ -63,6 +63,9 @@ static uint8_t in_buffer[BODY_BUFFER_SIZE];
 typedef enum 	{ESP_STATE_RECV_HEADERS, ESP_STATE_RECV_BODY} EspState;
 static EspState esp_state = ESP_STATE_RECV_HEADERS;
 
+/* Import global error flag */
+extern uint32_t device_err;
+
 /* Static methods */
 static void receive_header(void);
 static void receive_body(uint32_t body_len);
