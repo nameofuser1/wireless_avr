@@ -21,7 +21,7 @@
 static char* errors[SYSTEM_ERRORS_NUM] = {"System error", "Memory error", "IO error"};
 
 /*
- *	One millisecond per timer tick
+ *	One microsecond per timer tick
  *	import HardwareTimer based on TIM2
  */
 #define SYSTEM_TIMER_PRESCALER 	36000-1

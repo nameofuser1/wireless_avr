@@ -62,7 +62,6 @@ void CONTROLLER_init(void)
 	LOGGING_Info("Controller init");
 
 	system_init();
-	device_err = DEVICE_CRC_ERROR;
 
 	actions[READY] = CONTROLLER_state_ready;
 	actions[READ_MCU_INFO] = CONTROLLER_state_read_mcu_info;

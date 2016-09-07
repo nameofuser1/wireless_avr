@@ -75,6 +75,18 @@ static void _free_packet_buf(PacketBuffer buf);
 
 static void usart_event_handler(uint32_t event)
 {
+	if(event & ARM_USART_EVENT_RX_OVERFLOW)
+	{
+		device_err = DEVICE_RX_OVERFLOW_ERROR;
+		return;
+	}
+
+	if(event & ARM_USART_EVENT_TX_UNDERFLOW)
+	{
+		device_err = DEVICE_TX_UNDERFLOW_ERROR;
+		return;
+	}
+
 	if(event & ARM_USART_EVENT_SEND_COMPLETE)
 	{
 		_free_packet_buf(processing_packet);
@@ -108,20 +120,28 @@ static void usart_event_handler(uint32_t event)
 		if(esp_state == ESP_STATE_RECV_HEADERS)
 		{
 			device_err = DEVICE_HEADER_IDLE_LINE_ERROR;
+			return;
 		}
 		else
 		{
 			if(ESP_Driver_Usart.GetStatus().rx_busy == 1)
 			{
-				LOGGING_Error("Receive %" PRIu32 " bytes of body", ESP_Driver_Usart.GetRxCount());
 				device_err = DEVICE_BODY_IDLE_LINE_ERROR;
+				return;
 			}
 		}
 	}
 
-	if(event & ARM_USART_EVENT_RX_OVERFLOW)
+	if(event & ARM_USART_EVENT_RX_FRAMING_ERROR)
 	{
-		LOGGING_Error("RX overflow");
+		device_err = DEVICE_FRAMING_ERROR;
+		return;
+	}
+
+	if(event & ARM_USART_EVENT_RX_PARITY_ERROR)
+	{
+		device_err = DEVICE_PARITY_ERROR;
+		return;
 	}
 
 }

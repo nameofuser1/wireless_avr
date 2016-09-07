@@ -11,7 +11,7 @@
 #include "soft_timers/HardwareTimer.h"
 #include "soft_timers/SoftwareTimer.h"
 
-#define ERROR_NUM	(DEVICE_PROGRAMMING_ERROR + 1)
+#define ERROR_NUM	(DEVICE_PARITY_ERROR + 1)
 
 /*
  *	System error functions typedef
@@ -32,8 +32,7 @@ char *error_str[ERROR_NUM] =
 		"Idle line on ESP rx line while receiving headers", "Idle line on ESP rx line while receiving body",
 		"ESP Receive busy",		"ESP Receive parameter error", "ESP Send busy error", "ESP send parameter error",
 		"ESP unknown driver error", "Error while initializing device", "Unsupported programmer type",
-		"Programming error"
-
+		"Programming error", 		"Rx overflow", 		"Tx underflow",			"Framing error", 		"Parity error"
 };
 
 /*
@@ -43,7 +42,8 @@ system_error_func_t error_funcs[ERROR_NUM] =
 {
 		NULL, 		system_error, 	memory_error,	system_error,	system_error,
 		io_error,	io_error,		io_error,		io_error,		io_error,
-		io_error,	io_error,		system_error,	system_error,	system_error
+		io_error,	io_error,		system_error,	system_error,	system_error,
+		io_error,	io_error,		io_error,		io_error
 
 };
 
