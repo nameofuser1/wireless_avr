@@ -6,9 +6,9 @@
  */
 
 #include "logging.h"
-#include "system.h"
 #include <stdio.h>
 #include <stdarg.h>
+#include <system/system.h>
 
 #define __FORMAT_LOG __attribute__ ((format (printf, 1, 2)))
 

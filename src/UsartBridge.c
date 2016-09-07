@@ -6,7 +6,7 @@
  */
 
 
-#include "system.h"
+#include <system/system.h>
 #include "protocol.h"
 #include "UsartBridge.h"
 #include "USART_STM32F10x.h"

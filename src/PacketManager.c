@@ -8,15 +8,15 @@
 #include "crc32.h"
 #include "PacketManager.h"
 #include "esp8266.h"
-#include "system.h"
 #include "protocol.h"
-#include "err.h"
 #include "common/logging.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <system/err.h>
+#include <system/system.h>
 
 #define PACKETS_BUF_SIZE 	10
 #define PARSING_BUF_SIZE	512

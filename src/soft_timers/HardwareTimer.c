@@ -238,7 +238,7 @@ static void HardwareTimer2_init(uint16_t prescaler)
 }
 
 static void HardwareTimer2_start(void) { HardwareTimer_Start(&tim2_resources); }
-static void HardwareTimer2_stop(void) { HardwareTimer_Stop(&tim2_resources); }
+static void HardwareTimer2_stop(void) { NVIC_DisableIRQ(TIM2_IRQn); HardwareTimer_Stop(&tim2_resources); }
 static void HardwareTimer2_set_duration(uint16_t duration) { HardwareTimer_SetDuration(&tim2_resources, duration); }
 static void HardwareTimer2_add_timer(SoftwareTimer *tim) { HardwareTimer_AddTimer(&tim2_resources, tim); }
 static void HardwareTimer2_remove_timer(SoftwareTimer *tim) { HardwareTimer_RemoveTimer(&tim2_resources, tim); }

@@ -8,11 +8,11 @@
 
 #include "EspUpdater.h"
 #include "protocol.h"
-#include "system.h"
 #include "esp8266.h"
 #include "common/logging.h"
 
 #include <string.h>
+#include <system/system.h>
 
 #include <USART_STM32F10x.h>
 

@@ -5,8 +5,8 @@
  *      Author: bigmac
  */
 
-#ifndef SRC_ERR_H_
-#define SRC_ERR_H_
+#ifndef SRC_SYSTEM_ERR_H_
+#define SRC_SYSTEM_ERR_H_
 
 #include <inttypes.h>
 
@@ -26,6 +26,4 @@
 #define DEVICE_PROGRAMMER_TYPE_ERROR	13
 #define DEVICE_PROGRAMMING_ERROR		14
 
-void handle_error(uint32_t error_byte);
-
-#endif /* SRC_ERR_H_ */
+#endif /* SRC_SYSTEM_ERR_H_ */

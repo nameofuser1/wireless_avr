@@ -6,20 +6,19 @@
  */
 
 #include "controller.h"
-#include "system.h"
 #include "protocol.h"
 #include "esp8266.h"
 #include "avr_flasher.h"
 #include "EspUpdater.h"
 #include "UsartBridge.h"
 #include "common/logging.h"
-
-#include "err.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stm32f10x_crc.h>
+#include <system/err.h>
+#include <system/system.h>
+#include <system/system.h>
 
 
 /* Controller states */
@@ -61,6 +60,9 @@ void CONTROLLER_init(void)
 	EspUpdater_Init(115200);
 	LOGGING_SetLevel(LOG_INFO);
 	LOGGING_Info("Controller init");
+
+	system_init();
+	device_err = DEVICE_CRC_ERROR;
 
 	actions[READY] = CONTROLLER_state_ready;
 	actions[READ_MCU_INFO] = CONTROLLER_state_read_mcu_info;

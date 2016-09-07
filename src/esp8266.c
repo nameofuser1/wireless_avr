@@ -12,15 +12,15 @@
 #include <inttypes.h>
 
 #include "stm32f10x.h"
-#include "system.h"
 #include "esp8266.h"
 #include "protocol.h"
 #include "transport.h"
-#include "err.h"
 #include "PacketManager.h"
 #include "common/logging.h"
 #include "common/CircularBuffer.h"
 #include <Driver_USART.h>
+#include <system/err.h>
+#include <system/system.h>
 
 #define ESP_STATUS_GPIO 		GPIOB
 #define ESP_STATUS_GPIO_IDR		GPIO_IDR_IDR4
