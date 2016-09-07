@@ -26,4 +26,6 @@
 #define DEVICE_PROGRAMMER_TYPE_ERROR	13
 #define DEVICE_PROGRAMMING_ERROR		14
 
+void handle_error(uint32_t error_byte);
+
 #endif /* SRC_ERR_H_ */

@@ -255,10 +255,18 @@ HardwareTimerDriver		TIMER2_Driver = {
 		.Delay = (delay_func_t)HardwareTimer2_delay
 };
 
+volatile uint32_t enter_addr = 0;
 
 /* Interrupts */
 void TIM2_IRQHandler(void)
 {
+	asm(
+			"push {r8}\n\t"
+			"ldr r7, =(enter_addr)\n\t"
+			"add r8, sp, #0x04\n\t"				// one word higher (r8)  // three words higher (r7, lr, r8)
+			"str r8, [r7]\n\t"					// store address into enter_addr
+			"pop {r8}\n\t"
+	);
 	HardwareTimer_IRQHandler(&tim2_resources);
 }
 

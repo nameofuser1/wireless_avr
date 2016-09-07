@@ -15,7 +15,7 @@
 extern HardwareTimerDriver SystemTimer;
 static SoftwareTimer err_timer;
 
-static void handle_error(uint32_t error_byte);
+//static void handle_error(uint32_t error_byte);
 static void err_timer_cb(void);
 
 /*
@@ -43,7 +43,7 @@ static void err_timer_cb(void)
 }
 
 
-static void handle_error(uint32_t error_byte)
+void handle_error(uint32_t error_byte)
 {
 	switch(error_byte)
 	{
