@@ -148,7 +148,6 @@ Packet	PacketManager_CreatePacket(uint8_t *data, uint16_t data_len, PacketType t
 		packet->data = NULL;
 	}
 
-	packet->crc = _packet_crc(packet);
 	return packet;
 }
 
@@ -177,11 +176,11 @@ uint8_t* PacketManager_Packet2Buf(Packet packet, uint32_t *bytes)
 	buf[2] = (uint8_t)type_byte;
 
 	memcpy(buf+PACKET_HEADER_SIZE, packet->data, packet->data_length);
-
+	uint32_t crc = crc32_native(buf, packet->data_length + PACKET_HEADER_SIZE);
 	/* If using memcpy have to use htonl as arm has little-endian */
 	for(uint32_t i=0; i<CRC_FIELD_SIZE; i++)
 	{
-		buf[buffer_length-CRC_FIELD_SIZE+i] = (packet->crc >> (24-i*8)) & 0xFF;
+		buf[buffer_length-CRC_FIELD_SIZE+i] = (crc >> (24-i*8)) & 0xFF;
 	}
 
 
@@ -194,7 +193,6 @@ Packet PacketManager_Copy(Packet packet)
 	Packet cpy = (Packet)sys_malloc(sizeof(struct _packet));
 	memcpy(cpy->data, packet->data, packet->data_length);
 	cpy->data_length = packet->data_length;
-	cpy->crc = packet->crc;
 	cpy->type = packet->type;
 
 	return cpy;

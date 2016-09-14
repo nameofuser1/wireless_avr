@@ -23,7 +23,6 @@ typedef struct _packet {
 
 	PacketType 	type;
 	uint32_t 	data_length;
-	uint32_t	crc;
 	uint8_t 	*data;
 
 } *Packet;
