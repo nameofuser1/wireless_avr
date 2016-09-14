@@ -22,9 +22,9 @@ typedef enum {AVR_PROG_INIT_PACKET=0, STOP_PROGRAMMER_PACKET, CMD_PACKET, RESET_
 typedef struct _packet {
 
 	PacketType 	type;
-	uint16_t 	data_length;
-	uint8_t 	*data;
+	uint32_t 	data_length;
 	uint32_t	crc;
+	uint8_t 	*data;
 
 } *Packet;
 

@@ -92,8 +92,6 @@ Packet PacketManager_parse(uint8_t *packet_buffer)
 		data_length = packet_len - PACKET_HEADER_SIZE;
 	}
 
-
-
 	uint8_t *packet_data = packet_buffer+data_offset;
 	Packet packet = PacketManager_CreatePacket(packet_data, data_length, packet_type);
 
@@ -174,8 +172,8 @@ uint8_t* PacketManager_Packet2Buf(Packet packet, uint32_t *bytes)
 		system_error("Wrong packet type");
 	}
 
-	buf[0] = (packet->data_length >> 8) & 0xFF;
-	buf[1] = (packet->data_length) & 0xFF;
+	buf[0] = (buffer_length >> 8) & 0xFF;
+	buf[1] = (buffer_length) & 0xFF;
 	buf[2] = (uint8_t)type_byte;
 
 	memcpy(buf+PACKET_HEADER_SIZE, packet->data, packet->data_length);
@@ -205,18 +203,21 @@ Packet PacketManager_Copy(Packet packet)
 
 static uint32_t _packet_crc(Packet packet)
 {
-	uint8_t crc_buf[packet->data_length + PACKET_HEADER_SIZE];
+	uint8_t crc_buf[packet->data_length + PACKET_RESERVED_BYTES];
 	crc_buf[0] = (packet->data_length >> 8) & 0xFF;
 	crc_buf[1] = packet->data_length & 0xFF;
 
-	int8_t packet_type_byte = _get_packet_type_byte(packet->type);
-	if(packet_type_byte == -1)
+	uint8_t packet_type_byte = _get_packet_type_byte(packet->type);
+	if(packet_type_byte == NONE_PACKET_BYTE)
 	{
 		system_error("Wrong packet byte");
 	}
 
-	crc_buf[2] = (uint8_t)packet_type_byte;
-	memcpy(crc_buf+PACKET_HEADER_SIZE, packet->data, packet->data_length);
+	crc_buf[2] = packet_type_byte;
+	if(packet->data != NULL)
+	{
+		memcpy(crc_buf+PACKET_HEADER_SIZE, packet->data, packet->data_length);
+	}
 
 	return crc32_native(crc_buf, packet->data_length + PACKET_HEADER_SIZE);
 }

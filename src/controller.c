@@ -12,12 +12,9 @@
 #include "EspUpdater.h"
 #include "UsartBridge.h"
 #include "common/logging.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stm32f10x_crc.h>
 #include <system/err.h>
-#include <system/system.h>
 #include <system/system.h>
 
 
