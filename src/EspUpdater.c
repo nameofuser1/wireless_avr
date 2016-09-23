@@ -10,6 +10,7 @@
 #include "protocol.h"
 #include "esp8266.h"
 #include "common/logging.h"
+#include "system/err.h"
 
 #include <string.h>
 #include <system/system.h>
@@ -33,16 +34,33 @@ static uint8_t state = STATE_RECEIVE_HEADER;
 extern ARM_DRIVER_USART 		Driver_USART1;
 
 
+static void __recieve_header(void);
+static void __recieve_body(uint32_t body_len);
+
+extern uint32_t device_err;
+
+
 static void usart_callback(uint32_t event)
 {
+	if(event & ARM_USART_EVENT_RX_OVERFLOW)
+	{
+		device_err = DEVICE_RX_OVERFLOW_ERROR;
+		return;
+	}
+
+	if(event & ARM_USART_EVENT_TX_UNDERFLOW)
+	{
+		device_err = DEVICE_TX_UNDERFLOW_ERROR;
+		return;
+	}
+
+
 	if(event & ARM_USART_EVENT_RECEIVE_COMPLETE)
 	{
 		if(state == STATE_RECEIVE_HEADER)
 		{
 			uint16_t size = get_size_from_header(in_buffer);
-
-			state = STATE_RECEIVE_BODY;
-			Driver_USART1.Receive(in_buffer+PACKET_HEADER_SIZE, size);
+			__recieve_body(size);
 		}
 		else
 		{
@@ -50,15 +68,14 @@ static void usart_callback(uint32_t event)
 
 			if(packet->type != LOAD_NET_INFO_PACKET)
 			{
-					system_error("Wrong packet type. NOT UNKNOWN. WRONG.");
+					device_err = DEVICE_TYPES_ERROR;
 			}
 			else
 			{
 				EspUpdater_LoadNetworkData(packet);
 				PacketManager_free(packet);
 
-				state = STATE_RECEIVE_HEADER;
-				Driver_USART1.Receive(in_buffer, PACKET_HEADER_SIZE);
+				__recieve_header();
 			}
 		}
 	}
@@ -67,12 +84,11 @@ static void usart_callback(uint32_t event)
 	{
 		if(state == STATE_RECEIVE_BODY)
 		{
-			io_error("Idle line while trying to "
-					"receive body of EspUpdater packet");
+			device_err = DEVICE_BODY_IDLE_LINE_ERROR;
 		}
 		else
 		{
-			LOGGING_Error("Idle line in RECEIVE_HEADER state in EspUpdater");
+			device_err = DEVICE_HEADER_IDLE_LINE_ERROR;
 		}
 	}
 }
@@ -94,8 +110,7 @@ void EspUpdater_Init(uint32_t baudrate)
 	NVIC_EnableIRQ(EspUpdater_USART_IRQn);
 
 	state = STATE_RECEIVE_HEADER;
-	Driver_USART1.Receive(in_buffer, PACKET_HEADER_SIZE);
-	USART1->CR1 &= ~(USART_CR1_IDLEIE);
+	__recieve_header();
 }
 
 
@@ -109,4 +124,22 @@ void EspUpdater_LoadNetworkData(Packet data_packet)
 	 */
 
 	ESP8266_SendPacket(data_packet);
+}
+
+
+static void __recieve_body(uint32_t body_len)
+{
+	Driver_USART1.Receive(in_buffer+PACKET_HEADER_SIZE, body_len);
+	USART1->CR1 &= ~(USART_CR1_IDLEIE);
+
+	state = STATE_RECEIVE_BODY;
+}
+
+
+static void __recieve_header(void)
+{
+	Driver_USART1.Receive(in_buffer, PACKET_HEADER_SIZE);
+	USART1->CR1 &= ~(USART_CR1_IDLEIE);
+
+	state = STATE_RECEIVE_HEADER;
 }
