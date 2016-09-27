@@ -5,15 +5,15 @@
  *      Author: bigmac
  */
 
-
 #include "EspUpdater.h"
-#include "protocol.h"
 #include "esp8266.h"
+#include "PacketManager.h"
 #include "common/logging.h"
 #include "system/err.h"
 
 #include <string.h>
 #include <system/system.h>
+#include "protocol.h"
 
 #include <USART_STM32F10x.h>
 
@@ -59,7 +59,7 @@ static void usart_callback(uint32_t event)
 	{
 		if(state == STATE_RECEIVE_HEADER)
 		{
-			uint16_t size = get_size_from_header(in_buffer);
+			uint32_t size = get_size_from_header(in_buffer) - PACKET_HEADER_SIZE;
 			__recieve_body(size);
 		}
 		else
@@ -68,15 +68,16 @@ static void usart_callback(uint32_t event)
 
 			if(packet->type != LOAD_NET_INFO_PACKET)
 			{
-					device_err = DEVICE_TYPES_ERROR;
+				device_err = DEVICE_TYPES_ERROR;
+				return;
 			}
 			else
 			{
 				EspUpdater_LoadNetworkData(packet);
 				PacketManager_free(packet);
-
-				__recieve_header();
 			}
+
+			__recieve_header();
 		}
 	}
 
@@ -109,7 +110,6 @@ void EspUpdater_Init(uint32_t baudrate)
 
 	NVIC_EnableIRQ(EspUpdater_USART_IRQn);
 
-	state = STATE_RECEIVE_HEADER;
 	__recieve_header();
 }
 
@@ -129,17 +129,17 @@ void EspUpdater_LoadNetworkData(Packet data_packet)
 
 static void __recieve_body(uint32_t body_len)
 {
+	state = STATE_RECEIVE_BODY;
+
 	Driver_USART1.Receive(in_buffer+PACKET_HEADER_SIZE, body_len);
 	USART1->CR1 &= ~(USART_CR1_IDLEIE);
-
-	state = STATE_RECEIVE_BODY;
 }
 
 
 static void __recieve_header(void)
 {
+	state = STATE_RECEIVE_HEADER;
+
 	Driver_USART1.Receive(in_buffer, PACKET_HEADER_SIZE);
 	USART1->CR1 &= ~(USART_CR1_IDLEIE);
-
-	state = STATE_RECEIVE_HEADER;
 }

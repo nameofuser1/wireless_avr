@@ -50,14 +50,18 @@ static void usart_bridge_callback(uint32_t event)
 	{
 		/* Create and send packet */
 		uint32_t bytes_read = UsartBridge_Driver.GetRxCount();
-		Packet usart_packet = PacketManager_CreatePacket(bridge_buffer,
-				bytes_read, USART_PACKET);
 
-		ESP8266_SendPacket(usart_packet);
-		PacketManager_free(usart_packet);
+		if(bytes_read > 0)
+		{
+			Packet usart_packet = PacketManager_CreatePacket(bridge_buffer,
+					bytes_read, USART_PACKET);
 
-		/* Start new receive */
-		UsartBridge_Driver.Receive(bridge_buffer, bridge_buffer_size);
+			ESP8266_SendPacket(usart_packet);
+			PacketManager_free(usart_packet);
+
+			/* Start new receive */
+			UsartBridge_Driver.Receive(bridge_buffer, bridge_buffer_size);
+		}
 	}
 
 	if(event & ARM_USART_EVENT_SEND_COMPLETE)

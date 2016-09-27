@@ -131,7 +131,8 @@ Packet	PacketManager_CreatePacket(uint8_t *data, uint16_t data_len, PacketType t
 {
 	if(data_len > MAX_PACKET_LENGTH)
 	{
-		system_error("Wrong packet length");
+		device_err = DEVICE_LENGTH_ERROR;
+		return NULL;
 	}
 
 	Packet packet = (Packet)sys_malloc(sizeof(struct _packet));
