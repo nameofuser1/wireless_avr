@@ -2,8 +2,6 @@
 #include "controller.h"
 #include "common/logging.h"
 #include "esp8266.h"
-#include "soft_timers/HardwareTimer.h"
-#include "system/system.h"
 
 
 void CLOCK_init(void);
@@ -120,14 +118,15 @@ static void gpio_init(void)
 	 * External interrupt on line 4
 	 * On GPIOB 4. Rising/falling edges;
 	 */
+
 	/*
 	AFIO->EXTICR[2] |= AFIO_EXTICR2_EXTI4_PB;
 	EXTI->IMR |= EXTI_IMR_MR4;
 	EXTI->RTSR |= EXTI_RTSR_TR4;
 	EXTI->FTSR |= EXTI_FTSR_TR4;
-	*/
 
-	//NVIC_EnableIRQ(EXTI4_IRQn);
+
+	NVIC_EnableIRQ(EXTI4_IRQn);*/
 }
 
 

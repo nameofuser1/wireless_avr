@@ -461,7 +461,9 @@ Packet AVRFlasher_pgm_enable(void)
 	uint8_t success[1] = {0};
 
 	AVRFlasher_reset_enable();
+	LOGGING_Info("Before first delay");
 	delay(DELAY_AFTER_RESET_MS);
+	LOGGING_Info("After first delay");
 
 	for(uint8_t j=0; j<2; j++)
 	{
