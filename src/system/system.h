@@ -20,4 +20,6 @@ void 	io_error(char *msg);
 
 void* 	sys_malloc(int32_t size);
 
+void	delay(uint32_t ms);
+
 #endif /* SRC_SYSTEM_SYSTEM_H_ */

@@ -48,7 +48,6 @@ void SoftwareTimer_Arm(SoftwareTimer *tim, SoftTimerType type, uint32_t length)
 }
 
 
-
 /*
  * *******************************************
  * !!! IMPORTANT !!!

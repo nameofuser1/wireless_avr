@@ -27,6 +27,7 @@ static char* errors[SYSTEM_ERRORS_NUM] = {"System error", "Memory error", "IO er
 #define SYSTEM_TIMER_PRESCALER 	36000-1
 extern 	HardwareTimerDriver 	SystemTimer;
 
+
 /*
  *	Timer for handling errors
  *	Callback for timer
@@ -35,6 +36,7 @@ extern 	HardwareTimerDriver 	SystemTimer;
 SoftwareTimer 	err_timer;
 static void 	err_timer_cb(void);
 extern void		handle_error(uint32_t error_code);
+
 
 /*
  *	Import global error flag
@@ -105,6 +107,16 @@ void* sys_malloc(int32_t size)
 	}
 
 	return arr;
+}
+
+
+void delay(uint32_t ms)
+{
+	SoftwareTimer	delay_timer;
+	SoftwareTimer_Arm(&delay_timer, Timer_OnePulse, ms);
+	SystemTimer.AddTimer(&delay_timer);
+
+	SoftwareTimer_WaitFor(&delay_timer);
 }
 
 

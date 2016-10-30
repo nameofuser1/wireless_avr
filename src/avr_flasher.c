@@ -4,38 +4,47 @@
  *  Created on: 24 нояб. 2015 г.
  *      Author: kripton
  */
-#include "avr_flasher.h"
+
+#include <stm32f10x.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "avr_flasher.h"
+#include "system/system.h"
+#include "soft_timers/HardwareTimer.h"
 #include "soft_timers/SoftwareTimer.h"
-#include <periph/spi.h>
-#include <stm32f10x.h>
-#include <inttypes.h>
+#include "periph/spi.h"
+#include "common/logging.h"
+
 
 #define FLASH_MEMORY_BYTE 	0x00
 #define EEPROM_MEMORY_BYTE	0x01
 
+/* Entering PGM mode parameters */
 #define PGM_ENABLE_RETRIES		30
 #define PGM_ENABLE_DELAY_MS		5
-
 #define DELAY_AFTER_RESET_MS	20
 
-static void
-AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len, uint32_t addr, uint8_t input, uint8_t *cmd);
+/* Function for manipulating SCK when SPI is on */
+static void pull_sck_up(void);
+static void pull_sck_down(void);
+
+/* Some parsing functions */
+static void AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len,
+		uint32_t addr, uint8_t input, uint8_t *cmd);
 
 static AvrMemoryType AVRFlasher_get_memory_type(uint8_t byte);
-//static void pull_sck_up();
-//static void pull_sck_down();
 
+/* Contains info about programming MCU */
 static AvrMcuData mcu_info;
+
+/* Check if we loaded MCU info */
 static bool initialized = false;
 
-/*
- * ******************************************************
- * Set necessary data
- * ******************************************************
- */
+
+
 void AVRFlasher_init(AvrMcuData data)
 {
 	mcu_info = data;
@@ -75,7 +84,7 @@ void AVRFlasher_stop(void)
  */
 AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 {
-	printf("Getting mcu info\r\n");
+	LOGGING_Info("Getting mcu info");
 	AvrMcuData init_packet;
 	uint32_t k = 0;
 
@@ -215,7 +224,7 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
 	}
 
 	//printf("Packet length is %" PRIu16 " bytes\r\nUsed %" PRIu32 " bytes\r\n", packet->data_length, k-1);
-	printf("\r\nMcu info got\r\n");
+	LOGGING_Info("Got mcu info");
 
 	return init_packet;
 }
@@ -229,7 +238,7 @@ AvrMcuData AVRFlasher_get_mcu_info(Packet packet)
  */
 AvrProgMemData	AVRFlasher_get_prog_mem_data(Packet packet)
 {
-	//printf("Getting prog mem data\r\n");
+	LOGGING_Info("Getting prog mem data");
 	AvrProgMemData mem_data;
 
 	mem_data.start_address = (packet->data[0] << 24) | (packet->data[1] << 16)
@@ -241,7 +250,7 @@ AvrProgMemData	AVRFlasher_get_prog_mem_data(Packet packet)
 
 	memcpy(mem_data.data, packet->data+5, mem_data.data_len);
 
-	//printf("Got prog mem data\r\n");
+	LOGGING_Info("Got prog mem data");
 	return mem_data;
 }
 
@@ -330,7 +339,7 @@ bool AVRFlasher_prog_memory(AvrProgMemData prog_data)
  */
 bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
 {
-	printf("Starting program flash memory\r\n");
+	LOGGING_Info("Starting program flash memory\r\n");
 	if(prog_data.data_len % 2 != 0)
 	{
 		return false;
@@ -340,24 +349,24 @@ bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
 	uint8_t answer[AVR_CMD_SIZE];
 	uint8_t cmd[AVR_CMD_SIZE];
 
-	bool delay = (mcu_info.flash_wait_ms > 0);
+	bool _delay = (mcu_info.flash_wait_ms > 0);
 
 	for(uint8_t i=0; i<prog_data.data_len; i+=2)
 	{
 		uint8_t data_byte = prog_data.data[i];
 
-		if(delay)
+		if(_delay)
 		{
-			//SoftwareTimer_DelayMs(&soft_timer2, mcu_info.flash_wait_ms);
+			delay(mcu_info.flash_wait_ms);
 		}
 
 		AVRFlasher_create_memory_cmd(mcu_info.flash_load_hi_pattern, mcu_info.flash_load_hi_len,
 				address, data_byte, cmd);
 		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, answer);
 
-		if(delay)
+		if(_delay)
 		{
-			//SoftwareTimer_DelayMs(&soft_timer2, mcu_info.flash_wait_ms);
+			delay(mcu_info.flash_wait_ms);
 		}
 
 		AVRFlasher_create_memory_cmd(mcu_info.flash_load_lo_pattern, mcu_info.flash_load_lo_len,
@@ -374,13 +383,13 @@ bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
 		{
 			if(answer[j] != cmd[j-1])
 			{
-				printf("Failed when programming. Wrong bytes returned.\r\n");
+				LOGGING_Error("Failed when programming. Wrong bytes returned.\r\n");
 				return false;
 			}
 		}
 	}
 
-	printf("Successfully wrote flash memory\r\n");
+	LOGGING_Info("Successfully wrote flash memory\r\n");
 
 	return true;
 }
@@ -405,9 +414,9 @@ bool AVRFlasher_prog_eeprom_mem(AvrProgMemData prog_data)
  */
 Packet AVRFlasher_read_mem(AvrReadMemData mem_data)
 {
-	printf("Begin reading memory\r\n");
-	printf("Start address 0x%08lx\r\n", mem_data.start_address);
-	printf("Bytes to read %" PRIu32 "\r\n", mem_data.bytes_to_read);
+	LOGGING_Info("Begin reading memory\r\n");
+	LOGGING_Info("Start address 0x%08lx\r\n", mem_data.start_address);
+	LOGGING_Info("Bytes to read %" PRIu32 "\r\n", mem_data.bytes_to_read);
 
 	uint32_t address = mem_data.start_address;
 
@@ -432,7 +441,7 @@ Packet AVRFlasher_read_mem(AvrReadMemData mem_data)
 		address++;
 	}
 
-	printf("Successfully read memory\r\n");
+	LOGGING_Info("Successfully read memory\r\n");
 	return PacketManager_CreatePacket(answer, mem_data.bytes_to_read, MEMORY_PACKET);
 }
 
@@ -445,32 +454,53 @@ Packet AVRFlasher_read_mem(AvrReadMemData mem_data)
  */
 Packet AVRFlasher_pgm_enable(void)
 {
-	printf("Trying to enter into programming mode\r\n");
+	LOGGING_Info("Trying to enter into programming mode\r\n");
+
+	bool 	reset_synch = true;
 	uint8_t res[AVR_CMD_SIZE];
 	uint8_t success[1] = {0};
 
 	AVRFlasher_reset_enable();
-	//SoftwareTimer_DelayMs(&soft_timer2, DELAY_AFTER_RESET_MS);
+	delay(DELAY_AFTER_RESET_MS);
 
-	for(uint32_t i=0; i<PGM_ENABLE_RETRIES; i++)
+	for(uint8_t j=0; j<2; j++)
 	{
-		AVRFlasher_send_command(mcu_info.pgm_enable, AVR_CMD_SIZE, res);
-
-		if(res[2] == mcu_info.pgm_enable[1])
+		for(uint32_t i=0; i<PGM_ENABLE_RETRIES; i++)
 		{
-			printf("Successfully entered programming mode. %" PRIu32 " retries\r\n", i+1);
-			success[0] = 1;
+			AVRFlasher_send_command(mcu_info.pgm_enable, AVR_CMD_SIZE, res);
+
+			if(res[2] == mcu_info.pgm_enable[1])
+			{
+				LOGGING_Info("Successfully entered programming mode. %" PRIu32 " retries\r\n", i+1);
+				success[0] = 1;
+				break;
+			}
+			else
+			{
+				if(reset_synch)
+				{
+					AVRFlasher_reset_disable();
+					delay(DELAY_AFTER_RESET_MS);
+					AVRFlasher_reset_enable();
+				}
+				else
+				{
+					SPI1_disable();
+					pull_sck_up();
+					delay(DELAY_AFTER_RESET_MS);
+					pull_sck_down();
+					SPI1_enable();
+				}
+			}
+		}
+
+		if(success[0] == 1 || !reset_synch)
+		{
 			break;
 		}
 		else
 		{
-			AVRFlasher_reset_disable();
-			//SPI1_disable();
-			//pull_sck_up();
-			//SoftwareTimer_DelayMs(&soft_timer2, DELAY_AFTER_RESET_MS);
-			//pull_sck_down();
-			//SPI1_enable();
-			AVRFlasher_reset_enable();
+			reset_synch = false;
 		}
 	}
 
@@ -571,8 +601,8 @@ static AvrMemoryType AVRFlasher_get_memory_type(uint8_t byte)
 }
 
 
-/*
-static void pull_sck_up() {
+
+static void pull_sck_up(void) {
 	GPIOA->CRL &= ~GPIO_CRL_CNF5;
 	GPIOA->CRL &= ~GPIO_CRL_MODE5;
 	GPIOA->CRL |= GPIO_CRL_MODE5_1;
@@ -581,15 +611,15 @@ static void pull_sck_up() {
 }
 
 
-static void pull_sck_down() {
+static void pull_sck_down(void) {
 	GPIOA->BRR |= GPIO_BRR_BR5;
 
-	PA5. SCK alternate push-pull 50MHz
+	/* PA5. SCK alternate push-pull 50MHz */
 	GPIOA->CRL &= ~GPIO_CRL_CNF5;
 	GPIOA->CRL |= GPIO_CRL_CNF5_1;
 	GPIOA->CRL |= GPIO_CRL_MODE5;
 }
-*/
+
 
 
 

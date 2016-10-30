@@ -2,13 +2,16 @@
 #include "controller.h"
 #include "common/logging.h"
 #include "esp8266.h"
+#include "soft_timers/HardwareTimer.h"
+#include "system/system.h"
+
 
 void CLOCK_init(void);
 static void gpio_init(void);
 
 uint8_t state = 0;
 
-/*
+
 static void reset_pin_cb(void)
 {
 	if(!state)
@@ -21,7 +24,10 @@ static void reset_pin_cb(void)
 		GPIOA->BSRR |= GPIO_BSRR_BR8;
 		state = 0;
 	}
-}*/
+}
+
+
+extern HardwareTimerDriver SystemTimer;
 
 
 int main(void)
@@ -32,15 +38,28 @@ int main(void)
 
 	gpio_init();
 
-
 	/*
-	 * Also we make usart2 prio lower then usart3 as usart3 is
-	 * responsible for communication with esp. Some speed up.
+	 * We make usart2 prio lower then usart3 as usart3 is
+	 * responsible for communication with esp.
 	 */
 	NVIC_SetPriority(TIM2_IRQn, 0);
 	NVIC_SetPriority(USART3_IRQn, 0);
 	NVIC_SetPriority(USART2_IRQn, 1);
 	NVIC_SetPriority(USART1_IRQn, 2);
+
+	SystemTimer.Init(36000-1);					//1 ms per tick
+	SystemTimer.SetDuration(1);					//update interrupt every 1 tick
+	SystemTimer.Start();
+
+	SoftwareTimer pin_timer;
+
+	SoftwareTimer_Init(&pin_timer);
+	SoftwareTimer_Add_cb(&pin_timer, (SoftTimerCallback)reset_pin_cb);
+	SoftwareTimer_Arm(&pin_timer, Timer_Repeat, 25);
+
+	SystemTimer.AddTimer(&pin_timer);
+
+	while(1);
 
 	/*
 	 * I know, I know...
