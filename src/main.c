@@ -11,7 +11,7 @@ static void gpio_init(void);
 
 uint8_t state = 0;
 
-
+/*
 static void reset_pin_cb(void)
 {
 	if(!state)
@@ -24,10 +24,7 @@ static void reset_pin_cb(void)
 		GPIOA->BSRR |= GPIO_BSRR_BR8;
 		state = 0;
 	}
-}
-
-
-extern HardwareTimerDriver SystemTimer;
+}*/
 
 
 int main(void)
@@ -46,20 +43,6 @@ int main(void)
 	NVIC_SetPriority(USART3_IRQn, 0);
 	NVIC_SetPriority(USART2_IRQn, 1);
 	NVIC_SetPriority(USART1_IRQn, 2);
-
-	SystemTimer.Init(36000-1);					//1 ms per tick
-	SystemTimer.SetDuration(1);					//update interrupt every 1 tick
-	SystemTimer.Start();
-
-	SoftwareTimer pin_timer;
-
-	SoftwareTimer_Init(&pin_timer);
-	SoftwareTimer_Add_cb(&pin_timer, (SoftTimerCallback)reset_pin_cb);
-	SoftwareTimer_Arm(&pin_timer, Timer_Repeat, 25);
-
-	SystemTimer.AddTimer(&pin_timer);
-
-	while(1);
 
 	/*
 	 * I know, I know...
@@ -144,7 +127,7 @@ static void gpio_init(void)
 	EXTI->FTSR |= EXTI_FTSR_TR4;
 	*/
 
-	NVIC_EnableIRQ(EXTI4_IRQn);
+	//NVIC_EnableIRQ(EXTI4_IRQn);
 }
 
 
