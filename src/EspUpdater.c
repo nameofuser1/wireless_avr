@@ -5,17 +5,19 @@
  *      Author: bigmac
  */
 
+#include <stm32f10x.h>
+#include <string.h>
+#include <USART_STM32F10x.h>
+
+#include "system/system.h"
+#include "system/err.h"
+#include "protocol.h"
+
 #include "EspUpdater.h"
 #include "esp8266.h"
 #include "PacketManager.h"
 #include "common/logging.h"
-#include "system/err.h"
 
-#include <string.h>
-#include <system/system.h>
-#include "protocol.h"
-
-#include <USART_STM32F10x.h>
 
 /* Maximum buffer size */
 #define INPUT_BUFFER_SIZE	50
@@ -109,6 +111,7 @@ void EspUpdater_Init(uint32_t baudrate)
 	Driver_USART1.Control(ARM_USART_CONTROL_RX, 1);
 	Driver_USART1.Control(ARM_USART_CONTROL_TX, 1);
 
+	// It should be unnecessary
 	NVIC_EnableIRQ(EspUpdater_USART_IRQn);
 
 	__recieve_header();
