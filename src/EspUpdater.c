@@ -114,6 +114,14 @@ void EspUpdater_Init(uint32_t baudrate)
 }
 
 
+void EspUpdater_DeInit(void)
+{
+	Driver_USART1.Control(ARM_USART_EVENT_RX_BREAK, 1);
+	Driver_USART1.PowerControl(ARM_POWER_OFF);
+	Driver_USART1.Uninitialize();
+}
+
+
 void EspUpdater_LoadNetworkData(Packet data_packet)
 {
 	/*

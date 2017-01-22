@@ -1,6 +1,7 @@
 #include <stm32f10x.h>
 #include "controller.h"
 #include "common/logging.h"
+#include "EspUpdater.h"
 #include "esp8266.h"
 
 
@@ -41,6 +42,10 @@ int main(void)
 	NVIC_SetPriority(USART3_IRQn, 0);
 	NVIC_SetPriority(USART2_IRQn, 1);
 	NVIC_SetPriority(USART1_IRQn, 2);
+
+	EspUpdater_Init(115200);
+	LOGGING_SetLevel(LOG_INFO);
+	LOGGING_Info("Wainting for esp");
 
 	/*
 	 * I know, I know...

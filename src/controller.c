@@ -9,7 +9,6 @@
 #include "protocol.h"
 #include "esp8266.h"
 #include "avr_flasher.h"
-#include "EspUpdater.h"
 #include "UsartBridge.h"
 #include "common/logging.h"
 #include <stdlib.h>
@@ -29,6 +28,7 @@ static void CONTROLLER_state_failed(void);
 static void load_cmd(Packet cmd_packet);
 static void prog_mem(Packet mem_packet);
 static void read_mem(Packet mem_info);
+static void stop_programmer(void);
 static void _send_ack(void);
 static void _send_packet(Packet p);
 static void _log_packet(Packet log_p);
@@ -54,10 +54,6 @@ void CONTROLLER_init(void)
 {
 	/* Initialize it first because it's
 	 * also responsible for printf  */
-	EspUpdater_Init(115200);
-	LOGGING_SetLevel(LOG_INFO);
-	LOGGING_Info("Controller init");
-
 	system_init();
 
 	actions[READY] = CONTROLLER_state_ready;
@@ -74,7 +70,9 @@ void CONTROLLER_init(void)
 
 void CONTROLLER_DeInit(void)
 {
-	CONTROLLER_state_terminate();
+	ESP8266_DeInit();
+	UsartBridge_Stop();
+	UsartBridge_DeInit();
 }
 
 
@@ -140,13 +138,6 @@ static void CONTROLLER_state_ready(void)
 				state = READ_MCU_INFO;
 				break;
 
-			case STOP_PROGRAMMER_PACKET:
-				_send_ack();
-				AVRFlasher_stop();
-				AVRFlasher_reset_disable();
-				state = READY;
-				break;
-
 			case USART_INIT_PACKET:
 				_send_ack();
 				UsartBridge_Init(current_packet);
@@ -196,7 +187,7 @@ static void CONTROLLER_state_read_mcu_info(void)
 			{
 				LOGGING_Info("Getting mcu info in state read prog init\r\n");
 				AvrMcuData mcu_info = AVRFlasher_get_mcu_info(current_packet);
-				AVRFlasher_init(mcu_info);
+				AVRFlasher_Init(mcu_info);
 
 				Packet en_packet = AVRFlasher_pgm_enable();
 				ESP8266_SendPacket(en_packet);
@@ -234,6 +225,10 @@ static void CONTROLLER_state_read_cmd(void)
 		else if(current_packet->type == READ_MEM_PACKET)
 		{
 			read_mem(current_packet);
+		}
+		else if(current_packet->type == STOP_PROGRAMMER_PACKET)
+		{
+			stop_programmer();
 		}
 		else
 		{
@@ -317,6 +312,15 @@ static void read_mem(Packet mem_info)
 }
 
 
+static void stop_programmer(void)
+{
+	_send_ack();
+
+	AVRFlasher_DeInit();
+	AVRFlasher_reset_disable();
+	state = READY;
+}
+
 /*
  * ***********************************************
  * Stop working
@@ -325,9 +329,7 @@ static void read_mem(Packet mem_info)
  */
 static void CONTROLLER_state_terminate(void)
 {
-	ESP8266_DeInit();
-	UsartBridge_Stop();
-	UsartBridge_DeInit();
+	CONTROLLER_DeInit();
 	state = READY;
 }
 

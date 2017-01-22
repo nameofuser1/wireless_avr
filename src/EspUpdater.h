@@ -11,6 +11,7 @@
 #include "PacketManager.h"
 
 void 		EspUpdater_Init(uint32_t baudrate);
+void 		EspUpdater_DeInit(void);
 void 		EspUpdater_LoadNetworkData(Packet data_packet);
 
 #endif /* SRC_ESPUPDATER_H_ */

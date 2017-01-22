@@ -281,7 +281,7 @@ Packet ESP8266_GetPacket(void)
 
 /*
  * Receiving header.
- * Disable IDLE line interrupt as we can wait forever.
+ * Disable IDLE line interrupt so we can wait forever.
  */
 static void receive_header(void)
 {

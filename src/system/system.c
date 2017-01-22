@@ -113,6 +113,7 @@ void* sys_malloc(int32_t size)
 void delay(uint32_t ms)
 {
 	SoftwareTimer	delay_timer;
+	SoftwareTimer_Init(&delay_timer);;
 	SoftwareTimer_Arm(&delay_timer, Timer_OnePulse, ms);
 	SystemTimer.AddTimer(&delay_timer);
 

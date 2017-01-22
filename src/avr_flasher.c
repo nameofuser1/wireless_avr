@@ -45,7 +45,7 @@ static bool initialized = false;
 
 
 
-void AVRFlasher_init(AvrMcuData data)
+void AVRFlasher_Init(AvrMcuData data)
 {
 	mcu_info = data;
 
@@ -61,7 +61,7 @@ void AVRFlasher_init(AvrMcuData data)
  * Clears memory when not needed
  * *************************************
  */
-void AVRFlasher_stop(void)
+void AVRFlasher_DeInit(void)
 {
 	if(initialized)
 	{
@@ -71,6 +71,8 @@ void AVRFlasher_stop(void)
 		free(mcu_info.flash_load_lo_pattern);
 		free(mcu_info.flash_read_hi_pattern);
 		free(mcu_info.flash_read_lo_pattern);
+
+		SPI1_disable();
 		initialized = false;
 	}
 }
@@ -461,9 +463,7 @@ Packet AVRFlasher_pgm_enable(void)
 	uint8_t success[1] = {0};
 
 	AVRFlasher_reset_enable();
-	LOGGING_Info("Before first delay");
 	delay(DELAY_AFTER_RESET_MS);
-	LOGGING_Info("After first delay");
 
 	for(uint8_t j=0; j<2; j++)
 	{

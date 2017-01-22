@@ -71,8 +71,8 @@ typedef struct {
 } AvrReadMemData;
 
 
-void 			AVRFlasher_init(AvrMcuData data);
-void 			AVRFlasher_stop(void);
+void 			AVRFlasher_Init(AvrMcuData data);
+void 			AVRFlasher_DeInit(void);
 
 AvrMcuData		AVRFlasher_get_mcu_info(Packet packet);
 AvrProgMemData	AVRFlasher_get_prog_mem_data(Packet packet);
