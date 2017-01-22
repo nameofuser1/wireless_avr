@@ -2,7 +2,7 @@
  * esp8266.c
  *
  *  Created on: 17 февр. 2016 г.
- *      Author: kripton
+ *      Author: Kamnev Yuriy
  */
 
 #include <stddef.h>
@@ -11,7 +11,10 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
-#include "stm32f10x.h"
+#include <stm32f10x.h>
+#include <stm32f10x_gpio.h>
+#include <stm32f10x_exti.h>
+
 #include "esp8266.h"
 #include "protocol.h"
 #include "transport.h"
@@ -23,13 +26,30 @@
 #include <system/system.h>
 
 
+
+/*
+ * TODO:
+ *  1.	Add LoadNetwork function.
+ * 	2.	Add busy flag to prevent sending new packet
+ * 			while updating network info.
+ *
+ *
+ */
+
 /*
  * GPIO Pin which is pulled up after ESP
  * connects to a network
  */
-#define ESP_STATUS_GPIO 		GPIOB
-#define ESP_STATUS_GPIO_IDR		GPIO_IDR_IDR4
-#define ESP_STATUS_GPIO_READ()	(ESP_STATUS_GPIO->IDR & ESP_STATUS_GPIO_IDR)
+#define ESP_STATUS_GPIO_PORT 			GPIOB
+#define ESP_STATUS_GPIO_PIN				GPIO_Pin_4
+#define ESP_STATUS_GPIO_IDR				GPIO_IDR_IDR4
+#define ESP_STATUS_GPIO_READ()			(ESP_STATUS_GPIO_PORT->IDR & ESP_STATUS_GPIO_IDR)
+
+#define ESP_STATUS_GPIO_EXTI_PORT_SRC	GPIO_PortSourceGPIOB
+#define ESP_STATUS_GPIO_EXTI_PIN_SRC	GPIO_PinSource4
+#define ESP_STATUS_GPIO_EXTI_LINE		EXTI_Line4
+#define ESP_STATUS_GPIO_EXTI_IRQn		EXTI4_IRQn
+
 
 /* It is better to use IO interrupts
  * 	to turn on network info update mode.
@@ -127,7 +147,6 @@ static void usart_event_handler(uint32_t event)
 	}
 
 
-
 	if(event & ARM_USART_EVENT_RECEIVE_COMPLETE)
 	{
 		if(esp_state == ESP_STATE_RECV_HEADERS)
@@ -208,8 +227,24 @@ void ESP8266_Init(void)
 
 	PacketManager_init();
 
-	/* Starting receiving packets */
-	receive_header();
+	/* Initialize status GPIO as input with pull down */
+	GPIO_InitTypeDef status_gpio;
+	status_gpio.GPIO_Mode = GPIO_Mode_IPD;
+	status_gpio.GPIO_Pin = ESP_STATUS_GPIO_PIN;
+	GPIO_Init(ESP_STATUS_GPIO_PORT, &status_gpio);
+
+	/* Configure EXTI line */
+	GPIO_EXTILineConfig(ESP_STATUS_GPIO_EXTI_PORT_SRC, ESP_STATUS_GPIO_EXTI_PIN_SRC);
+	NVIC_EnableIRQ(ESP_STATUS_GPIO_EXTI_IRQn);
+
+	/* Enable EXTI interrupt on status pin */
+	EXTI_InitTypeDef status_exti;
+	status_exti.EXTI_Line = ESP_STATUS_GPIO_EXTI_LINE;
+	status_exti.EXTI_Mode = EXTI_Mode_Interrupt;
+	status_exti.EXTI_Trigger = EXTI_Trigger_Rising_Falling;
+	status_exti.EXTI_LineCmd = ENABLE;
+
+	EXTI_Init(&status_exti);
 }
 
 
@@ -225,21 +260,10 @@ void ESP8266_DeInit(void)
 /*
  * When ESP is connected to a network it pulls
  * 	pin up. After that we can safely read data from it.
- *
- * 	TODO:
- * 		Replace reading with IO interrupts
- * 			and use ready variable in function.
  */
 void ESP8266_WaitForReady(void)
 {
-	for(volatile uint32_t i=0; i<2000000; i++);
-	while(!ESP_STATUS_GPIO_READ())
-	{
-		for(volatile uint32_t i=0; i<1000000; i++);
-	}
-	for(volatile uint32_t i=0; i<2000000; i++);
-
-	ready = 1;
+	while(!ready);
 }
 
 
@@ -394,4 +418,23 @@ static void _free_packet_buf(PacketBuffer buf)
 {
 	free(buf->buf);
 	free(buf);
+}
+
+
+/*
+ *
+ */
+void EXTI4_IRQHandler(void)
+{
+	uint8_t rising = GPIO_ReadInputDataBit(ESP_STATUS_GPIO_PORT, ESP_STATUS_GPIO_PIN);
+
+	if(rising)
+	{
+		receive_header();
+		ready = 1;
+	}
+	else
+	{
+		ready = 0;
+	}
 }
