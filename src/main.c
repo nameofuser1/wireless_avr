@@ -47,6 +47,7 @@ int main(void)
 
 	system_init();
 
+	ESP8266_Init();
 	EspUpdater_Init(115200);
 	LOGGING_SetLevel(LOG_INFO);
 	LOGGING_Info("Wainting for esp");
