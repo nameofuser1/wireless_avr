@@ -269,7 +269,7 @@ void ESP8266_WaitForReady(void)
 
 bool ESP8266_Ready(void)
 {
-	return ESP_STATUS_GPIO_READ();
+	return ready;
 }
 
 

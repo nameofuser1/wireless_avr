@@ -64,7 +64,6 @@ void CONTROLLER_init(void)
 
 void CONTROLLER_DeInit(void)
 {
-	ESP8266_DeInit();
 	UsartBridge_Stop();
 	UsartBridge_DeInit();
 }
@@ -335,7 +334,6 @@ static void CONTROLLER_state_terminate(void)
  */
 static void CONTROLLER_state_failed(void)
 {
-	ESP8266_DeInit();
 	UsartBridge_Stop();
 	UsartBridge_DeInit();
 
