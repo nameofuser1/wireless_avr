@@ -26,16 +26,17 @@ static uint8_t in_buffer[INPUT_BUFFER_SIZE];
 #define STATE_RECEIVE_HEADER 	0
 #define STATE_RECEIVE_BODY		1
 
+/* Current state of module */
 static uint8_t state = STATE_RECEIVE_HEADER;
 
-/* Usart Driver_USART1 is set from out */
-//static ARM_Driver_USART1_USART Driver_USART1;
+/* Usart used to receive information */
 #define EspUpdater_USART_IRQn	USART1_IRQn
 extern ARM_DRIVER_USART 		Driver_USART1;
 
 
 static void __recieve_header(void);
 static void __recieve_body(uint32_t body_len);
+
 
 extern uint32_t device_err;
 

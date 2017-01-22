@@ -52,17 +52,11 @@ extern char *packet_names[NONE_PACKET];
 
 void CONTROLLER_init(void)
 {
-	/* Initialize it first because it's
-	 * also responsible for printf  */
-	system_init();
-
 	actions[READY] = CONTROLLER_state_ready;
 	actions[READ_MCU_INFO] = CONTROLLER_state_read_mcu_info;
 	actions[READ_CMD] = CONTROLLER_state_read_cmd;
 	actions[TERMINATE] = CONTROLLER_state_terminate;
 	actions[FAILED] = CONTROLLER_state_failed;
-
-	ESP8266_Init();
 
 	state = READY;
 }

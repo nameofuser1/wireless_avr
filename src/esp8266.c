@@ -22,37 +22,46 @@
 #include <system/err.h>
 #include <system/system.h>
 
+
+/*
+ * GPIO Pin which is pulled up after ESP
+ * connects to a network
+ */
 #define ESP_STATUS_GPIO 		GPIOB
 #define ESP_STATUS_GPIO_IDR		GPIO_IDR_IDR4
 #define ESP_STATUS_GPIO_READ()	(ESP_STATUS_GPIO->IDR & ESP_STATUS_GPIO_IDR)
 
+/* It is better to use IO interrupts
+ * 	to turn on network info update mode.
+ *
+ * 	TODO:
+ * 		Update ESP using interrupts  */
 #define ESP_INFO_LOAD_GPIO				GPIOB
 #define ESP_INFO_LOAD_GPIO_BS			GPIO_BSRR_BS5
 #define ESP_INFO_LOAD_GPIO_BR			GPIO_BSRR_BR5
 #define ESP_INFO_LOAD_GPIO_ENABLE()		(ESP_INFO_LOAD_GPIO->BSRR |= ESP_INFO_LOAD_GPIO_BS)
 #define ESP_INFO_LOAD_GPIO_DISABLE()	(ESP_INFO_LOAD_GPIO->BSRR |= ESP_INFO_LOAD_GPIO_BR)
 
-/* Import usart driver */
+/* USART which is connected to ESP */
 #define ESP_USART_Typedef	USART3
 #define ESP_USART_IRQn		USART3_IRQn
 #define ESP_Driver_Usart 	Driver_USART3
 
-/* Usart driver import */
-extern ARM_DRIVER_USART ESP_Driver_Usart;
+extern ARM_DRIVER_USART 	ESP_Driver_Usart;
 
 /* USART CONFIG */
-#define ESP_USART_BAUDRATE 115200
+#define ESP_USART_BAUDRATE 	115200
 
 /* Buffer sizes for saving packets */
-#define OUTCOME_PACKETS_BUFFER_SIZE 10
-#define INCOME_PACKETS_BUFFER_SIZE  5
+#define OUTCOME_PACKETS_BUFFER_SIZE 	10
+#define INCOME_PACKETS_BUFFER_SIZE  	5
 
 /* Save outcome packets here */
-static CircularBuffer outcome_packets_buffer;
-static PacketBuffer processing_packet;
+static CircularBuffer 	outcome_packets_buffer;
+static PacketBuffer 	processing_packet;
 
 /* Save income packets here */
-static CircularBuffer income_packets_buffer;
+static CircularBuffer 	income_packets_buffer;
 
 /* Buffers for reading */
 #define BODY_BUFFER_SIZE 	512
@@ -62,6 +71,9 @@ static uint8_t in_buffer[BODY_BUFFER_SIZE];
 /* State defines */
 typedef enum 	{ESP_STATE_RECV_HEADERS, ESP_STATE_RECV_BODY} EspState;
 static EspState esp_state = ESP_STATE_RECV_HEADERS;
+
+/* Set to 1 when ESP is connected to the network */
+static uint8_t	ready = 0;
 
 /* Import global error flag */
 extern uint32_t device_err;
@@ -73,8 +85,35 @@ static void _send_packet(PacketBuffer packet);
 static void _free_packet_buf(PacketBuffer buf);
 
 
+
+/*
+ * Takes care about parsing packets from ESP.
+ *
+ * TODO:
+ * 	Add one more state for updating ESP network info
+ * 		and check for the error.
+ */
 static void usart_event_handler(uint32_t event)
 {
+	if(event & ARM_USART_EVENT_SEND_COMPLETE)
+	{
+		_free_packet_buf(processing_packet);
+
+		if(!CircularBuffer_is_empty(&outcome_packets_buffer))
+		{
+			processing_packet = (PacketBuffer)CircularBuffer_get(&outcome_packets_buffer);
+			_send_packet(processing_packet);
+		}
+	}
+
+	/*
+	 * Does not matter what happened while reading
+	 * if ESP is not ready */
+	if(!ready)
+	{
+		return;
+	}
+
 	if(event & ARM_USART_EVENT_RX_OVERFLOW)
 	{
 		device_err = DEVICE_RX_OVERFLOW_ERROR;
@@ -87,16 +126,7 @@ static void usart_event_handler(uint32_t event)
 		return;
 	}
 
-	if(event & ARM_USART_EVENT_SEND_COMPLETE)
-	{
-		_free_packet_buf(processing_packet);
 
-		if(!CircularBuffer_is_empty(&outcome_packets_buffer))
-		{
-			processing_packet = (PacketBuffer)CircularBuffer_get(&outcome_packets_buffer);
-			_send_packet(processing_packet);
-		}
-	}
 
 	if(event & ARM_USART_EVENT_RECEIVE_COMPLETE)
 	{
@@ -147,6 +177,9 @@ static void usart_event_handler(uint32_t event)
 }
 
 
+/*
+ * Initialize UART
+ */
 void ESP8266_Init(void)
 {
 	ESP_Driver_Usart.Initialize((ARM_USART_SignalEvent_t)usart_event_handler);
@@ -160,7 +193,8 @@ void ESP8266_Init(void)
 	ESP_Driver_Usart.Control(ARM_USART_CONTROL_TX ,1);
 	ESP_Driver_Usart.Control(ARM_USART_CONTROL_RX, 1);
 
-	NVIC_EnableIRQ(ESP_USART_IRQn);
+	// It should not be necessary
+	//NVIC_EnableIRQ(ESP_USART_IRQn);
 
 	if(!CircularBuffer_alloc(&outcome_packets_buffer, OUTCOME_PACKETS_BUFFER_SIZE))
 	{
@@ -188,6 +222,14 @@ void ESP8266_DeInit(void)
 }
 
 
+/*
+ * When ESP is connected to a network it pulls
+ * 	pin up. After that we can safely read data from it.
+ *
+ * 	TODO:
+ * 		Replace reading with IO interrupts
+ * 			and use ready variable in function.
+ */
 void ESP8266_WaitForReady(void)
 {
 	for(volatile uint32_t i=0; i<2000000; i++);
@@ -195,6 +237,9 @@ void ESP8266_WaitForReady(void)
 	{
 		for(volatile uint32_t i=0; i<1000000; i++);
 	}
+	for(volatile uint32_t i=0; i<2000000; i++);
+
+	ready = 1;
 }
 
 
@@ -282,6 +327,9 @@ Packet ESP8266_GetPacket(void)
 /*
  * Receiving header.
  * Disable IDLE line interrupt so we can wait forever.
+ *
+ * TODO:
+ * 		Replace system error with device error
  */
 static void receive_header(void)
 {

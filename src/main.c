@@ -1,8 +1,10 @@
 #include <stm32f10x.h>
+#include <system/system.h>
 #include "controller.h"
 #include "common/logging.h"
 #include "EspUpdater.h"
 #include "esp8266.h"
+
 
 
 void CLOCK_init(void);
@@ -35,13 +37,15 @@ int main(void)
 	gpio_init();
 
 	/*
-	 * We make usart2 prio lower then usart3 as usart3 is
-	 * responsible for communication with esp.
+	 * We make usart2 priority lower then usart3 as usart3 is
+	 * responsible for communication with ESP.
 	 */
 	NVIC_SetPriority(TIM2_IRQn, 0);
 	NVIC_SetPriority(USART3_IRQn, 0);
 	NVIC_SetPriority(USART2_IRQn, 1);
 	NVIC_SetPriority(USART1_IRQn, 2);
+
+	system_init();
 
 	EspUpdater_Init(115200);
 	LOGGING_SetLevel(LOG_INFO);
