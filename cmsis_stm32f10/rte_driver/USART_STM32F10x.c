@@ -1422,6 +1422,7 @@ static int32_t USART_Control (      uint32_t          control,
       } else {
         // Receiver disable
         usart->reg->CR1 &= ~USART_CR1_RE;
+        usart->reg->SR &= ~USART_SR_RXNE;
 
         usart->info->flags &= ~USART_FLAG_RX_ENABLED;
 

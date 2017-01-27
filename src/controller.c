@@ -52,6 +52,8 @@ extern char *packet_names[NONE_PACKET];
 
 void CONTROLLER_init(void)
 {
+	LOGGING_Info("Initializing controller");
+
 	actions[READY] = CONTROLLER_state_ready;
 	actions[READ_MCU_INFO] = CONTROLLER_state_read_mcu_info;
 	actions[READ_CMD] = CONTROLLER_state_read_cmd;
@@ -307,6 +309,7 @@ static void read_mem(Packet mem_info)
 
 static void stop_programmer(void)
 {
+
 	_send_ack();
 
 	AVRFlasher_DeInit();

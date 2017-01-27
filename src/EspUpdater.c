@@ -60,6 +60,7 @@ static void usart_callback(uint32_t event)
 
 	if(event & ARM_USART_EVENT_RECEIVE_COMPLETE)
 	{
+
 		if(state == STATE_RECEIVE_HEADER)
 		{
 			uint32_t size = get_size_from_header(in_buffer) - PACKET_HEADER_SIZE;
@@ -78,6 +79,7 @@ static void usart_callback(uint32_t event)
 			{
 				EspUpdater_LoadNetworkData(packet);
 				PacketManager_free(packet);
+				LOGGING_Info("Loaded");
 			}
 
 			__recieve_header();
@@ -102,19 +104,32 @@ void EspUpdater_Init(uint32_t baudrate)
 {
 	Driver_USART1.Initialize(usart_callback);
 	Driver_USART1.PowerControl(ARM_POWER_FULL);
-	Driver_USART1.Control(ARM_USART_MODE_ASYNCHRONOUS |
-						  ARM_USART_DATA_BITS_8 |
-						  ARM_USART_STOP_BITS_1 |
-						  ARM_USART_PARITY_NONE |
-						  ARM_USART_FLOW_CONTROL_NONE, baudrate);
 
-	Driver_USART1.Control(ARM_USART_CONTROL_RX, 1);
-	Driver_USART1.Control(ARM_USART_CONTROL_TX, 1);
+	int status = Driver_USART1.Control(ARM_USART_MODE_ASYNCHRONOUS |
+						  	  	  	   ARM_USART_DATA_BITS_8 |
+									   ARM_USART_STOP_BITS_1 |
+									   ARM_USART_PARITY_NONE |
+									   ARM_USART_FLOW_CONTROL_NONE, baudrate);
+
+	if(status != ARM_DRIVER_OK)
+	{
+		LOGGING_Error("Can not initialize usart 1");
+	}
+
+	if(Driver_USART1.Control(ARM_USART_CONTROL_RX, 1) != ARM_DRIVER_OK)
+	{
+		LOGGING_Error("Can not initialize usart1 RX");
+	}
+
+	if(Driver_USART1.Control(ARM_USART_CONTROL_TX, 1) != ARM_DRIVER_OK)
+	{
+		LOGGING_Error("Can not initialize usart1 TX");
+	}
 
 	// It should be unnecessary
 	NVIC_EnableIRQ(EspUpdater_USART_IRQn);
-
 	__recieve_header();
+	LOGGING_Info("EspUpdater started receiving headers");
 }
 
 

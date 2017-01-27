@@ -14,6 +14,7 @@
 
 void 		ESP8266_Init(void);
 void 		ESP8266_DeInit(void);
+void 		ESP8266_Start(void);
 void 		ESP8266_WaitForReady(void);
 bool 		ESP8266_Ready(void);
 bool 		ESP8266_SendPacket(Packet packet);

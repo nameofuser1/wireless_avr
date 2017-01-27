@@ -12,6 +12,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <stm32f10x.h>
+
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
@@ -109,6 +111,13 @@ int _write(int file, char *ptr, int len)
 	(void)file;
 #if 1
 
+	while(!(USART1->SR & USART_SR_TXE));
+	for(int i=0; i<len; i++)
+	{
+		USART1->DR = *ptr++;
+		while(!(USART1->SR & USART_SR_TXE));
+	}
+/*
      while(PRINTF_DRIVER.GetStatus().tx_busy == 1);
 
      if(proc_data != NULL)
@@ -119,6 +128,7 @@ int _write(int file, char *ptr, int len)
      memcpy(proc_data, ptr, len);
 
      PRINTF_DRIVER.Send((void*)proc_data, len);
+*/
 #endif
 
     return len;

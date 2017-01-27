@@ -117,6 +117,7 @@ static void usart_event_handler(uint32_t event)
 {
 	if(event & ARM_USART_EVENT_SEND_COMPLETE)
 	{
+		LOGGING_Info("Packet is sent");
 		_free_packet_buf(processing_packet);
 
 		if(!CircularBuffer_is_empty(&outcome_packets_buffer))
@@ -124,6 +125,13 @@ static void usart_event_handler(uint32_t event)
 			processing_packet = (PacketBuffer)CircularBuffer_get(&outcome_packets_buffer);
 			_send_packet(processing_packet);
 		}
+	}
+
+
+	if(event & ARM_USART_EVENT_TX_UNDERFLOW)
+	{
+		device_err = DEVICE_TX_UNDERFLOW_ERROR;
+		return;
 	}
 
 	/*
@@ -137,12 +145,6 @@ static void usart_event_handler(uint32_t event)
 	if(event & ARM_USART_EVENT_RX_OVERFLOW)
 	{
 		device_err = DEVICE_RX_OVERFLOW_ERROR;
-		return;
-	}
-
-	if(event & ARM_USART_EVENT_TX_UNDERFLOW)
-	{
-		device_err = DEVICE_TX_UNDERFLOW_ERROR;
 		return;
 	}
 
@@ -209,11 +211,11 @@ void ESP8266_Init(void)
 							 ARM_USART_STOP_BITS_1 |
 							 ARM_USART_FLOW_CONTROL_NONE, ESP_USART_BAUDRATE);
 
-	ESP_Driver_Usart.Control(ARM_USART_CONTROL_TX ,1);
-	ESP_Driver_Usart.Control(ARM_USART_CONTROL_RX, 1);
+	ESP_Driver_Usart.Control(ARM_USART_CONTROL_TX, 1);
+	ESP_Driver_Usart.Control(ARM_USART_CONTROL_RX, 0);
 
 	// It should not be necessary
-	//NVIC_EnableIRQ(ESP_USART_IRQn);
+	NVIC_EnableIRQ(ESP_USART_IRQn);
 
 	if(!CircularBuffer_alloc(&outcome_packets_buffer, OUTCOME_PACKETS_BUFFER_SIZE))
 	{
@@ -245,6 +247,12 @@ void ESP8266_Init(void)
 	status_exti.EXTI_LineCmd = ENABLE;
 
 	EXTI_Init(&status_exti);
+}
+
+
+void ESP8266_Start(void)
+{
+	receive_header();
 }
 
 
@@ -430,11 +438,16 @@ void EXTI4_IRQHandler(void)
 
 	if(rising)
 	{
+		ESP_Driver_Usart.Control(ARM_USART_CONTROL_RX, 1);
 		receive_header();
 		ready = 1;
 	}
 	else
 	{
+		ESP_Driver_Usart.Control(ARM_USART_ABORT_RECEIVE, 1);
+		ESP_Driver_Usart.Control(ARM_USART_CONTROL_RX, 0);
 		ready = 0;
 	}
+
+	EXTI_ClearITPendingBit(ESP_STATUS_GPIO_EXTI_LINE);
 }
