@@ -6,6 +6,7 @@
  */
 
 #include <stm32f10x.h>
+#include <stm32f10x_gpio.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,8 +29,11 @@
 #define DELAY_AFTER_RESET_MS	20
 
 /* Function for manipulating SCK when SPI is on */
-static void pull_sck_up(void);
-static void pull_sck_down(void);
+static void sck_soft(void);
+static void sck_hard(void);
+
+/* Connect to ISP */
+static void connect(void);
 
 /* Some parsing functions */
 static void AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len,
@@ -51,7 +55,6 @@ void AVRFlasher_Init(AvrMcuData data)
 
 	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 	SPI1_init();
-	SPI1_enable();
 
 	initialized = true;
 }
@@ -267,7 +270,6 @@ AvrReadMemData	AVRFlasher_get_read_mem_data(Packet packet)
 {
 	AvrReadMemData mem_data;
 
-
 	mem_data.start_address = (packet->data[0] << 24) | (packet->data[1] << 16) | (packet->data[2] << 8) |
 			(packet->data[3]);
 	mem_data.bytes_to_read = (packet->data[4] << 24) | (packet->data[5] << 16) | (packet->data[6] << 8) |
@@ -403,7 +405,34 @@ bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
  */
 bool AVRFlasher_prog_eeprom_mem(AvrProgMemData prog_data)
 {
-	(void)prog_data;
+	uint32_t address = prog_data.start_address;
+	uint8_t answer[4] = {[0 ... 3] = 0};
+	uint8_t cmd[4] = {[0 ... 3] = 0};
+
+	for(int i=0; i<prog_data.data_len; i++)
+	{
+		uint8_t data_byte = prog_data.data[i];
+
+		AVRFlasher_create_memory_cmd(mcu_info.eeprom_write_pattern, mcu_info.eeprom_write_len,
+				address, data_byte, cmd);
+		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, answer);
+
+		address++;
+
+		for(int j=1; j<AVR_CMD_SIZE; j++)
+		{
+			if(answer[j] != cmd[j-1])
+			{
+				LOGGING_Error("Failed while programming EEPROM memory. Wrong bytes returned.");
+				return false;
+			}
+		}
+
+		if(mcu_info.eeprom_wait_ms > 0)
+		{
+			delay(mcu_info.eeprom_wait_ms);
+		}
+	}
 	return true;
 }
 
@@ -458,51 +487,36 @@ Packet AVRFlasher_pgm_enable(void)
 {
 	LOGGING_Info("Trying to enter into programming mode\r\n");
 
-	bool 	reset_synch = true;
 	uint8_t res[AVR_CMD_SIZE];
 	uint8_t success[1] = {0};
 
-	AVRFlasher_reset_enable();
-	delay(DELAY_AFTER_RESET_MS);
+	connect();
 
-	for(uint8_t j=0; j<2; j++)
+	for(uint32_t i=0; i<PGM_ENABLE_RETRIES; i++)
 	{
-		for(uint32_t i=0; i<PGM_ENABLE_RETRIES; i++)
-		{
-			AVRFlasher_send_command(mcu_info.pgm_enable, AVR_CMD_SIZE, res);
+		SPI1_enable();
+		AVRFlasher_send_command(mcu_info.pgm_enable, AVR_CMD_SIZE, res);
 
-			if(res[2] == mcu_info.pgm_enable[1])
-			{
-				LOGGING_Info("Successfully entered programming mode. %" PRIu32 " retries\r\n", i+1);
-				success[0] = 1;
-				break;
-			}
-			else
-			{
-				if(reset_synch)
-				{
-					AVRFlasher_reset_disable();
-					delay(DELAY_AFTER_RESET_MS);
-					AVRFlasher_reset_enable();
-				}
-				else
-				{
-					SPI1_disable();
-					pull_sck_up();
-					delay(DELAY_AFTER_RESET_MS);
-					pull_sck_down();
-					SPI1_enable();
-				}
-			}
-		}
-
-		if(success[0] == 1 || !reset_synch)
+		if(res[2] == mcu_info.pgm_enable[1])
 		{
+			LOGGING_Debug("Successfully entered programming mode. %" PRIu32 " retries\r\n", i+1);
+			success[0] = 1;
 			break;
 		}
 		else
 		{
-			reset_synch = false;
+			LOGGING_Debug("AVR answer: %" PRIu8 " %" PRIu8 " %" PRIu8 " %" PRIu8,
+					res[0], res[1], res[2], res[3]);
+
+			SPI1_disable();
+
+			delay(PGM_ENABLE_DELAY_MS);
+			AVRFlasher_reset_disable();
+			delay(PGM_ENABLE_DELAY_MS);
+			AVRFlasher_reset_enable();
+			delay(PGM_ENABLE_DELAY_MS);
+
+			SPI1_enable();
 		}
 	}
 
@@ -512,13 +526,13 @@ Packet AVRFlasher_pgm_enable(void)
 
 void AVRFlasher_reset_enable(void)
 {
-	GPIOA->BSRR |= GPIO_BSRR_BR8;
+	GPIO_ResetBits(GPIOA, GPIO_Pin_8);
 }
 
 
 void AVRFlasher_reset_disable(void)
 {
-	GPIOA->BSRR |= GPIO_BSRR_BS8;
+	GPIO_ResetBits(GPIOA, GPIO_Pin_8);
 }
 
 
@@ -603,23 +617,42 @@ static AvrMemoryType AVRFlasher_get_memory_type(uint8_t byte)
 }
 
 
+static void connect(void)
+{
+	sck_soft();
+	GPIO_ResetBits(GPIOA, GPIO_Pin_5);	// pull sck down
+	AVRFlasher_reset_enable();			// pull reset down
 
-static void pull_sck_up(void) {
-	GPIOA->CRL &= ~GPIO_CRL_CNF5;
-	GPIOA->CRL &= ~GPIO_CRL_MODE5;
-	GPIOA->CRL |= GPIO_CRL_MODE5_1;
+	delay(PGM_ENABLE_DELAY_MS);
+	AVRFlasher_reset_disable();
+	delay(PGM_ENABLE_DELAY_MS);
+	AVRFlasher_reset_enable();
 
-	GPIOA->BSRR |= GPIO_BSRR_BS5;
+	sck_hard();
+	SPI1_init();
+	SPI1_enable();
 }
 
 
-static void pull_sck_down(void) {
-	GPIOA->BRR |= GPIO_BRR_BR5;
 
-	/* PA5. SCK alternate push-pull 50MHz */
-	GPIOA->CRL &= ~GPIO_CRL_CNF5;
-	GPIOA->CRL |= GPIO_CRL_CNF5_1;
-	GPIOA->CRL |= GPIO_CRL_MODE5;
+static void sck_soft(void) {
+	GPIO_InitTypeDef sck;
+	sck.GPIO_Mode = GPIO_Mode_Out_PP;
+	sck.GPIO_Pin = GPIO_Pin_5;
+	sck.GPIO_Speed = GPIO_Speed_50MHz;
+
+	GPIO_Init(GPIOA, &sck);
+}
+
+
+static void sck_hard(void) {
+	GPIO_InitTypeDef sck;
+	sck.GPIO_Mode = GPIO_Mode_AF_PP;
+	sck.GPIO_Pin = GPIO_Pin_5;
+	sck.GPIO_Speed = GPIO_Speed_50MHz;
+
+	GPIO_Init(GPIOA, &sck);
+
 }
 
 
