@@ -247,6 +247,8 @@ void ESP8266_Init(void)
 	status_exti.EXTI_LineCmd = ENABLE;
 
 	EXTI_Init(&status_exti);
+
+	ready = ESP_STATUS_GPIO_READ();
 }
 
 
