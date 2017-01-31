@@ -47,7 +47,7 @@ void SPI1_init(void)
 	GPIOA->CRL |= GPIO_CRL_CNF6_0;
 
 	SPI_InitTypeDef spi;
-	spi.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_128;
+	spi.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_64;
 	spi.SPI_Mode = SPI_Mode_Master;
 	spi.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
 	spi.SPI_FirstBit = SPI_FirstBit_MSB;
