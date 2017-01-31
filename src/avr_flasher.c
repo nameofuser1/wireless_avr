@@ -20,6 +20,12 @@
 #include "common/logging.h"
 
 
+#define RESET_PORT			GPIOA
+#define RESET_PIN			GPIO_Pin_8
+#define RESET_ON()			GPIO_ResetBits(RESET_PORT, RESET_PIN)
+#define RESET_OFF()			GPIO_SetBits(RESET_PORT, RESET_PIN)
+
+
 #define FLASH_MEMORY_BYTE 	0x00
 #define EEPROM_MEMORY_BYTE	0x01
 
@@ -56,6 +62,14 @@ void AVRFlasher_Init(AvrMcuData data)
 	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 	SPI1_init();
 
+	GPIO_InitTypeDef reset;
+	reset.GPIO_Mode = GPIO_Mode_Out_PP;
+	reset.GPIO_Pin = RESET_PIN;
+	reset.GPIO_Speed = GPIO_Speed_2MHz;
+
+	GPIO_Init(RESET_PORT, &reset);
+	RESET_OFF();
+
 	initialized = true;
 }
 
@@ -74,6 +88,13 @@ void AVRFlasher_DeInit(void)
 		free(mcu_info.flash_load_lo_pattern);
 		free(mcu_info.flash_read_hi_pattern);
 		free(mcu_info.flash_read_lo_pattern);
+
+		GPIO_InitTypeDef reset;
+		reset.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+		reset.GPIO_Pin = RESET_PIN;
+
+		GPIO_Init(RESET_PORT, &reset);
+
 
 		SPI1_disable();
 		initialized = false;
@@ -387,7 +408,12 @@ bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
 		{
 			if(answer[j] != cmd[j-1])
 			{
-				LOGGING_Error("Failed when programming. Wrong bytes returned.\r\n");
+				LOGGING_Error("Failed when programming. Wrong bytes returned.");
+				LOGGING_Error("Command: 0x%02x 0x%02x 0x%02x 0x%02x",
+						cmd[0], cmd[1], cmd[2], cmd[3]);
+				LOGGING_Error("Answer: 0x%02x 0x%02x 0x%02x 0x%02x",
+						answer[0], answer[1], answer[2], answer[3]);
+
 				return false;
 			}
 		}
@@ -511,9 +537,9 @@ Packet AVRFlasher_pgm_enable(void)
 			SPI1_disable();
 
 			delay(PGM_ENABLE_DELAY_MS);
-			AVRFlasher_reset_disable();
+			RESET_OFF();
 			delay(PGM_ENABLE_DELAY_MS);
-			AVRFlasher_reset_enable();
+			RESET_ON();
 			delay(PGM_ENABLE_DELAY_MS);
 
 			SPI1_enable();
@@ -526,13 +552,13 @@ Packet AVRFlasher_pgm_enable(void)
 
 void AVRFlasher_reset_enable(void)
 {
-	GPIO_ResetBits(GPIOA, GPIO_Pin_8);
+	RESET_OFF();
 }
 
 
 void AVRFlasher_reset_disable(void)
 {
-	GPIO_ResetBits(GPIOA, GPIO_Pin_8);
+	RESET_ON();
 }
 
 
@@ -621,12 +647,12 @@ static void connect(void)
 {
 	sck_soft();
 	GPIO_ResetBits(GPIOA, GPIO_Pin_5);	// pull sck down
-	AVRFlasher_reset_enable();			// pull reset down
+	RESET_ON();
 
 	delay(PGM_ENABLE_DELAY_MS);
-	AVRFlasher_reset_disable();
+	RESET_OFF();
 	delay(PGM_ENABLE_DELAY_MS);
-	AVRFlasher_reset_enable();
+	RESET_ON();
 
 	sck_hard();
 	SPI1_init();

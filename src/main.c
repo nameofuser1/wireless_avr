@@ -46,10 +46,10 @@ int main(void)
 	NVIC_SetPriority(USART1_IRQn, 2);
 
 	system_init();
+	LOGGING_SetLevel(LOG_DEBUG);
 
 	ESP8266_Init();
 	EspUpdater_Init(115200);
-	LOGGING_SetLevel(LOG_DEBUG);
 	LOGGING_Info("Wainting for esp");
 
 	/*
@@ -59,6 +59,7 @@ int main(void)
 	esp_wait_ready:
 		ESP8266_WaitForReady();
 
+	LOGGING_Debug("ESP ready");
 	CONTROLLER_init();
 
 	while(1)
@@ -106,37 +107,6 @@ static void gpio_init(void)
 	GPIOB->CRL &= ~GPIO_CRL_CNF5;
 	GPIOB->CRL |= GPIO_CRL_MODE5_1;
 	GPIOB->BSRR |= GPIO_BSRR_BR5;
-
-	/* PB4. Input pull down. ESP ready. */
-	GPIOB->CRL &= ~GPIO_CRL_CNF4;
-	GPIOB->CRL |= GPIO_CRL_CNF4_1;
-	GPIOB->CRL &= ~GPIO_CRL_MODE4;
-	GPIOB->ODR &= ~GPIO_ODR_ODR4;
-
-	/* PB3. Input pull-down. ESP ready. Doesn't work in some reason */
-	GPIOB->CRL &= ~GPIO_CRL_CNF3;
-	GPIOB->CRL |= GPIO_CRL_CNF3_1;
-	GPIOB->CRL &= ~GPIO_CRL_MODE3;
-	GPIOB->ODR &= ~GPIO_ODR_ODR3;
-
-	/* PA8(reset) 2MHz push-pull, high(no reset)*/
-	GPIOA->CRH &= ~GPIO_CRH_CNF8;
-	GPIOA->CRH |= GPIO_CRH_MODE8_1;
-	GPIOA->BSRR |= GPIO_BSRR_BS8;
-
-	/*
-	 * External interrupt on line 4
-	 * On GPIOB 4. Rising/falling edges;
-	 */
-
-	/*
-	AFIO->EXTICR[2] |= AFIO_EXTICR2_EXTI4_PB;
-	EXTI->IMR |= EXTI_IMR_MR4;
-	EXTI->RTSR |= EXTI_RTSR_TR4;
-	EXTI->FTSR |= EXTI_FTSR_TR4;
-
-
-	NVIC_EnableIRQ(EXTI4_IRQn);*/
 }
 
 
