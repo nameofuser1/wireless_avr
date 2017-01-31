@@ -249,6 +249,11 @@ void ESP8266_Init(void)
 	EXTI_Init(&status_exti);
 
 	ready = ESP_STATUS_GPIO_READ();
+	if(ready)
+	{
+		ESP_Driver_Usart.Control(ARM_USART_CONTROL_RX, 1);
+		receive_header();
+	}
 }
 
 
