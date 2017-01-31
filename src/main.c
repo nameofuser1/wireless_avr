@@ -100,7 +100,6 @@ void CLOCK_init(void)
 
 static void gpio_init(void)
 {
-	RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_AFIOEN;
 	RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
 
 	/* PB5. Push-Pull 2MHz. Network info. */
