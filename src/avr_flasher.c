@@ -7,6 +7,8 @@
 
 #include <stm32f10x.h>
 #include <stm32f10x_gpio.h>
+#include <stm32f10x_rcc.h>
+
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,13 +61,17 @@ void AVRFlasher_Init(AvrMcuData data)
 {
 	mcu_info = data;
 
-	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);
+
 	SPI1_init();
 
 	GPIO_InitTypeDef reset;
+	GPIO_StructInit(&reset);
 	reset.GPIO_Mode = GPIO_Mode_Out_PP;
 	reset.GPIO_Pin = RESET_PIN;
-	reset.GPIO_Speed = GPIO_Speed_2MHz;
+	reset.GPIO_Speed = GPIO_Speed_10MHz;
 
 	GPIO_Init(RESET_PORT, &reset);
 	RESET_OFF();
@@ -534,7 +540,7 @@ Packet AVRFlasher_pgm_enable(void)
 			LOGGING_Debug("AVR answer: %" PRIu8 " %" PRIu8 " %" PRIu8 " %" PRIu8,
 					res[0], res[1], res[2], res[3]);
 
-			SPI1_disable();
+			//SPI1_disable();
 
 			delay(PGM_ENABLE_DELAY_MS);
 			RESET_OFF();
@@ -542,7 +548,7 @@ Packet AVRFlasher_pgm_enable(void)
 			RESET_ON();
 			delay(PGM_ENABLE_DELAY_MS);
 
-			SPI1_enable();
+			//SPI1_enable();
 		}
 	}
 
@@ -645,11 +651,12 @@ static AvrMemoryType AVRFlasher_get_memory_type(uint8_t byte)
 
 static void connect(void)
 {
+	LOGGING_Debug("Connecting...");
 	sck_soft();
 	GPIO_ResetBits(GPIOA, GPIO_Pin_5);	// pull sck down
-	RESET_ON();
 
-	delay(PGM_ENABLE_DELAY_MS);
+	RESET_ON();
+	delay(500);
 	RESET_OFF();
 	delay(PGM_ENABLE_DELAY_MS);
 	RESET_ON();
