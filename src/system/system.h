@@ -13,6 +13,7 @@
 #define SystemTimer			TIMER2_Driver
 #define SYSTEM_TIMER_IRQn	TIM2_IRQn
 
+#define BOOL	uint8_t
 #define FALSE	0
 #define TRUE	1
 
