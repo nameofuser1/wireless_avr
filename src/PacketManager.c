@@ -35,7 +35,6 @@ char *packet_names[PACKETS_TYPES_NUMBER] =
 
 /* Static methods definitions */
 static bool 		_check_crc(uint8_t *data, uint32_t len);
-static uint32_t 	_packet_crc(Packet packet);
 static uint8_t 		_get_packet_type_byte(PacketType type);
 static PacketType 	_get_packet_type(uint8_t type_byte);
 
@@ -206,28 +205,6 @@ Packet PacketManager_Copy(Packet packet)
 	cpy->type = packet->type;
 
 	return cpy;
-}
-
-
-static uint32_t _packet_crc(Packet packet)
-{
-	uint8_t crc_buf[packet->data_length + PACKET_RESERVED_BYTES];
-	crc_buf[0] = (packet->data_length >> 8) & 0xFF;
-	crc_buf[1] = packet->data_length & 0xFF;
-
-	uint8_t packet_type_byte = _get_packet_type_byte(packet->type);
-	if(packet_type_byte == NONE_PACKET_BYTE)
-	{
-		system_error("Wrong packet byte");
-	}
-
-	crc_buf[2] = packet_type_byte;
-	if(packet->data != NULL)
-	{
-		memcpy(crc_buf+PACKET_HEADER_SIZE, packet->data, packet->data_length);
-	}
-
-	return crc32_native(crc_buf, packet->data_length + PACKET_HEADER_SIZE);
 }
 
 
