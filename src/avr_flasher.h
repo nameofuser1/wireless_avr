@@ -63,10 +63,12 @@ typedef struct {
 
 } AvrProgMemData;
 
+
 typedef struct {
 
-	uint32_t start_address;
-	uint32_t bytes_to_read;
+	uint32_t 		start_address;
+	uint32_t 		bytes_to_read;
+	AvrMemoryType	mem_t;
 
 } AvrReadMemData;
 
@@ -82,7 +84,7 @@ bool 			AVRFlasher_send_command(uint8_t *cmd, uint8_t len, uint8_t *res);
 bool 			AVRFlasher_prog_memory(AvrProgMemData mem_data);
 bool			AVRFlasher_prog_flash_mem(AvrProgMemData mem_data);
 bool 			AVRFlasher_prog_eeprom_mem(AvrProgMemData prog_data);
-Packet 			AVRFlasher_read_mem(AvrReadMemData mem_data);
+void 			AVRFlasher_read_mem(AvrReadMemData *mem_data, uint8_t *buf);
 Packet			AVRFlasher_pgm_enable(void);
 
 void 			AVRFlasher_reset_enable(void);
