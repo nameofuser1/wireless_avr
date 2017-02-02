@@ -246,7 +246,7 @@ static void load_cmd(Packet cmd_packet)
 		uint8_t res[AVR_CMD_SIZE];
 		if(AVRFlasher_send_command(cmd_packet->data, cmd_packet->data_length, res))
 		{
-			Packet result_packet = PacketManager_CreatePacket(res, AVR_CMD_SIZE, CMD_PACKET);
+			Packet result_packet = PacketManager_CreatePacket(res, AVR_CMD_SIZE, CMD_PACKET, TRUE);
 			ESP8266_SendPacket(result_packet);
 			PacketManager_free(result_packet);
 
@@ -298,7 +298,10 @@ static void read_mem(Packet mem_info)
 	if(programmer_type == PROG_AVR)
 	{
 		AvrReadMemData mem_data = AVRFlasher_get_read_mem_data(mem_info);
-		Packet memory_packet = AVRFlasher_read_mem(mem_data);
+		Packet memory_packet = PacketManager_CreatePacket(NULL, mem_data.bytes_to_read,
+				MEMORY_PACKET, FALSE);
+
+		AVRFlasher_read_mem(&mem_data, memory_packet->data);
 		_send_packet(memory_packet);
 		PacketManager_free(memory_packet);
 
