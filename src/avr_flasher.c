@@ -43,6 +43,13 @@ static void sck_hard(void);
 /* Connect to ISP */
 static void connect(void);
 
+/* Methods for writing/reading memory */
+static void _read_flash_mem(AvrReadMemData *mem_data, uint8_t *buf);
+static void _read_eeprom_mem(AvrReadMemData *mem_data, uint8_t *buf);
+
+/* Support functions */
+static void _log_read_mem_info(AvrReadMemData *mem_info);
+
 /* Some parsing functions */
 static void AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len,
 		uint32_t addr, uint8_t input, uint8_t *cmd);
@@ -297,10 +304,12 @@ AvrReadMemData	AVRFlasher_get_read_mem_data(Packet packet)
 {
 	AvrReadMemData mem_data;
 
-	mem_data.start_address = (packet->data[0] << 24) | (packet->data[1] << 16) | (packet->data[2] << 8) |
-			(packet->data[3]);
-	mem_data.bytes_to_read = (packet->data[4] << 24) | (packet->data[5] << 16) | (packet->data[6] << 8) |
-			(packet->data[7]);
+	mem_data.mem_t = AVRFlasher_get_memory_type(packet->data[0]);
+	mem_data.start_address = (packet->data[1] << 24) | (packet->data[2] << 16) | (packet->data[3] << 8) |
+			(packet->data[4]);
+
+	mem_data.bytes_to_read = (packet->data[5] << 24) | (packet->data[6] << 16) | (packet->data[7] << 8) |
+			(packet->data[8]);
 
 	return mem_data;
 }
@@ -314,25 +323,18 @@ AvrReadMemData	AVRFlasher_get_read_mem_data(Packet packet)
  */
 bool AVRFlasher_send_command(uint8_t *cmd, uint8_t len, uint8_t *res)
 {
-	//printf("Send command: ");
-	//for(int i=0; i<len; i++) printf("0x%02x ", *(((uint8_t*)cmd)+i));
-	//printf("\r\n");
-
 	if(len != AVR_CMD_SIZE)
 	{
 		return false;
 	}
 
-	//printf("Answer is: ");
 	for(int i=0; i<len; i++)
 	{
 		SPI1_write(cmd[i]);
 
 		while(!(SPI1->SR & SPI_SR_RXNE));
 		res[i] = SPI1->DR;
-		//printf("0x%02x ", res[i]);
 	}
-	//printf("\r\n");
 
 	return true;
 }
@@ -470,42 +472,94 @@ bool AVRFlasher_prog_eeprom_mem(AvrProgMemData prog_data)
 
 
 /*
- * ******************************************************
+ * **********************************************************
  * Read memory command by command and return packet
  * With read bytes
- * ******************************************************
+ *
+ * Arguments:
+ * 		mem_data	---	Pointer to AvrReadMem data.
+ * 							Contains information for reading
+ *
+ * 		buf			---	buffer to save data into.
+ * ***********************************************************
  */
-Packet AVRFlasher_read_mem(AvrReadMemData mem_data)
+void AVRFlasher_read_mem(AvrReadMemData *mem_data, uint8_t *buf)
 {
-	LOGGING_Info("Begin reading memory\r\n");
-	LOGGING_Info("Start address 0x%08lx\r\n", mem_data.start_address);
-	LOGGING_Info("Bytes to read %" PRIu32 "\r\n", mem_data.bytes_to_read);
+	_log_read_mem_info(mem_data);
 
-	uint32_t address = mem_data.start_address;
+	if(mem_data->mem_t == MEMORY_FLASH)
+	{
+		_read_flash_mem(mem_data, buf);
+	}
+	else if(mem_data->mem_t == MEMORY_EEPROM)
+	{
+		_read_eeprom_mem(mem_data, buf);
+	}
+	else
+	{
+		//
+	}
 
-	uint8_t answer[mem_data.bytes_to_read];
+	LOGGING_Info("Successfully read memory\r\n");
+}
+
+
+/*
+ * ************************************************************
+ * Reads chunk of flash memory into given buffer
+ *
+ * Arguments:
+ * 	AvrReadMemData *mem_data	---	contains information about
+ * 										read operation
+ *
+ * 	uint8_t *buf				---	used to save data into it
+ */
+static void _read_flash_mem(AvrReadMemData *mem_data, uint8_t *buf)
+{
+	uint32_t address = mem_data->start_address;
 	uint8_t answer_counter = 0;
 
 	uint8_t cmd[AVR_CMD_SIZE];
 	uint8_t res[AVR_CMD_SIZE];
 
-	for(uint32_t i=0; i<mem_data.bytes_to_read; i+=2)
+	for(int i=0; i<mem_data->bytes_to_read; i+=2)
 	{
 		AVRFlasher_create_memory_cmd(mcu_info.flash_read_hi_pattern, mcu_info.flash_read_hi_len,
 				address, 0, cmd);
 		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, res);
-		answer[answer_counter++] = res[AVR_CMD_SIZE-1];
+		buf[answer_counter++] = res[AVR_CMD_SIZE-1];
 
 		AVRFlasher_create_memory_cmd(mcu_info.flash_read_lo_pattern, mcu_info.flash_read_lo_len,
 				address, 0, cmd);
 		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, res);
-		answer[answer_counter++] = res[AVR_CMD_SIZE-1];
+		buf[answer_counter++] = res[AVR_CMD_SIZE-1];
 
 		address++;
 	}
+}
 
-	LOGGING_Info("Successfully read memory\r\n");
-	return PacketManager_CreatePacket(answer, mem_data.bytes_to_read, MEMORY_PACKET);
+
+static void _read_eeprom_mem(AvrReadMemData *mem_info, uint8_t *buf)
+{
+	uint32_t address = mem_info->start_address;
+	uint8_t answer_counter = 0;
+
+	uint8_t cmd[AVR_CMD_SIZE];
+	uint8_t res[AVR_CMD_SIZE];
+
+	char 	*read_pattern 	 = mcu_info.eeprom_read_pattern;
+	uint8_t read_pattern_len = mcu_info.eeprom_read_len;
+
+	for(int i=0; i<mem_info->bytes_to_read; i++)
+	{
+		AVRFlasher_create_memory_cmd(read_pattern, read_pattern_len,
+				address, 0, cmd);
+
+		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, res);
+		buf[answer_counter++] = res[AVR_CMD_SIZE-1];
+
+		address++;
+	}
 }
 
 
@@ -552,7 +606,7 @@ Packet AVRFlasher_pgm_enable(void)
 		}
 	}
 
-	return PacketManager_CreatePacket(success, 1, CMD_PACKET);
+	return PacketManager_CreatePacket(success, 1, CMD_PACKET, TRUE);
 }
 
 
@@ -685,7 +739,27 @@ static void sck_hard(void) {
 	sck.GPIO_Speed = GPIO_Speed_50MHz;
 
 	GPIO_Init(GPIOA, &sck);
+}
 
+
+static void _log_read_mem_info(AvrReadMemData *mem_info)
+{
+	LOGGING_Info("Read memory info:");
+	if(mem_info->mem_t == MEMORY_FLASH)
+	{
+		LOGGING_Info("\tMemory type: FLASH");
+	}
+	else if(mem_info->mem_t == MEMORY_EEPROM)
+	{
+		LOGGING_Info("\tMemory type: EEPROM");
+	}
+	else
+	{
+		LOGGING_Info("\tUnknown memory type");
+	}
+
+	LOGGING_Info("\tStart address 0x%08lx\r\n", mem_info->start_address);
+	LOGGING_Info("\tBytes to read %" PRIu32 "\r\n", mem_info->bytes_to_read);
 }
 
 
