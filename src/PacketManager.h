@@ -32,7 +32,8 @@ void		PacketManager_init(void);
 Packet 		PacketManager_parse(uint8_t *buffer);
 void		PacketManager_free(Packet packet);
 Packet 		PacketManager_CreateErrorPacket(uint8_t err);
-Packet		PacketManager_CreatePacket(uint8_t* data, uint16_t data_len, PacketType type);
+Packet		PacketManager_CreatePacket(uint8_t *data, uint16_t data_len,
+				PacketType type, int cpy);
 uint8_t* 	PacketManager_Packet2Buf(Packet packet, uint32_t *bytes);
 Packet		PacketManager_Copy(Packet packet);
 

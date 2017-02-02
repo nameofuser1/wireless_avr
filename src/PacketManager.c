@@ -93,7 +93,8 @@ Packet PacketManager_parse(uint8_t *packet_buffer)
 	}
 
 	uint8_t *packet_data = packet_buffer+data_offset;
-	Packet packet = PacketManager_CreatePacket(packet_data, data_length, packet_type);
+	Packet packet = PacketManager_CreatePacket(packet_data, data_length,
+			packet_type, TRUE);
 
 	return packet;
 }
@@ -118,7 +119,7 @@ void PacketManager_free(Packet packet)
 Packet PacketManager_CreateErrorPacket(uint8_t error)
 {
 	uint8_t data[1] = {error};
-	return PacketManager_CreatePacket(data, 1, ERROR_PACKET);
+	return PacketManager_CreatePacket(data, 1, ERROR_PACKET, TRUE);
 }
 
 
@@ -127,7 +128,8 @@ Packet PacketManager_CreateErrorPacket(uint8_t error)
  * Create packet from array
  * *************************************
  */
-Packet	PacketManager_CreatePacket(uint8_t *data, uint16_t data_len, PacketType type)
+Packet
+PacketManager_CreatePacket(uint8_t *data, uint16_t data_len, PacketType type, int cpy)
 {
 	if(data_len > MAX_PACKET_LENGTH)
 	{
@@ -139,14 +141,21 @@ Packet	PacketManager_CreatePacket(uint8_t *data, uint16_t data_len, PacketType t
 	packet->type = type;
 	packet->data_length = data_len;
 
-	if(data_len != 0)
+	if(cpy)
 	{
-		packet->data = (uint8_t*)sys_malloc(sizeof(uint8_t) * (packet->data_length));
-		memcpy((packet->data), data, data_len*sizeof(uint8_t));
+		if(data_len != 0)
+		{
+			packet->data = (uint8_t*)sys_malloc(sizeof(uint8_t) * (packet->data_length));
+			memcpy((packet->data), data, data_len*sizeof(uint8_t));
+		}
+		else
+		{
+			packet->data = NULL;
+		}
 	}
 	else
 	{
-		packet->data = NULL;
+		packet->data = data;
 	}
 
 	return packet;
