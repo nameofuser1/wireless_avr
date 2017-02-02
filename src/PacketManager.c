@@ -18,12 +18,18 @@
 #include <system/err.h>
 #include <system/system.h>
 
-#define PACKETS_BUF_SIZE 	10
-#define PARSING_BUF_SIZE	512
-
-#define PACKETS_TYPES_NUMBER	(NONE_PACKET)
-
 #pragma GCC diagnostic ignored "-Wunused-variable"
+
+#define FIRST_PACKET_TYPE		AVR_PROG_INIT_PACKET
+#define LAST_PACKET_TYPE		NONE_PACKET
+
+#define PACKETS_TYPES_NUMBER	(LAST_PACKET_TYPE)
+
+#define PACKETS_BUF_SIZE 		10
+#define PARSING_BUF_SIZE		512
+
+/* Three packets of each type in pool */
+#define PACKET_POOL_SIZE		3
 
 /* For easy logging */
 char *packet_names[PACKETS_TYPES_NUMBER] =
@@ -33,13 +39,31 @@ char *packet_names[PACKETS_TYPES_NUMBER] =
 	"Load Network info"
 };
 
+/*
+int packet_lengths[PACKETS_TYPES_NUMBER] =
+{
+	[AVR_PROG_INIT_PACKET] = 0,
+	[ACK_PACKET] = 0,
+	[CMD_PACKET] = 4
+};*/
+
 /* Static methods definitions */
 static bool 		_check_crc(uint8_t *data, uint32_t len);
 static uint8_t 		_get_packet_type_byte(PacketType type);
 static PacketType 	_get_packet_type(uint8_t type_byte);
 
-
 extern uint32_t device_err;
+
+
+typedef struct _packet_pool {
+
+	Packet 	pool[PACKETS_TYPES_NUMBER][PACKET_POOL_SIZE];
+	BOOL 	used[PACKETS_TYPES_NUMBER][PACKET_POOL_SIZE];
+
+} PacketPool;
+
+
+PacketPool _packet_pool;
 
 
 void PacketManager_init(void)
