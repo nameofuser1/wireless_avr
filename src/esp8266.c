@@ -320,7 +320,7 @@ bool ESP8266_SendPacket(Packet packet)
 
 bool ESP8266_SendAck(void)
 {
-	Packet ack_packet = PacketManager_CreatePacket(NULL, 0, ACK_PACKET);
+	Packet ack_packet = PacketManager_CreatePacket(NULL, 0, ACK_PACKET, TRUE);
 	bool res = ESP8266_SendPacket(ack_packet);
 	PacketManager_free(ack_packet);
 
@@ -331,7 +331,7 @@ bool ESP8266_SendAck(void)
 bool ESP8266_SendError(uint8_t error)
 {
 	uint8_t err[1] = {error};
-	Packet err_packet = PacketManager_CreatePacket(err, 1, ERROR_PACKET);
+	Packet err_packet = PacketManager_CreatePacket(err, 1, ERROR_PACKET, TRUE);
 	bool res = ESP8266_SendPacket(err_packet);
 
 	PacketManager_free(err_packet);
@@ -359,7 +359,7 @@ Packet ESP8266_GetPacket(void)
 		return (Packet)CircularBuffer_get(&income_packets_buffer);
 	}
 
-	return PacketManager_CreatePacket(NULL, 0, NONE_PACKET);
+	return PacketManager_CreatePacket(NULL, 0, NONE_PACKET, TRUE);
 }
 
 

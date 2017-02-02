@@ -54,7 +54,7 @@ static void usart_bridge_callback(uint32_t event)
 		if(bytes_read > 0)
 		{
 			Packet usart_packet = PacketManager_CreatePacket(bridge_buffer,
-					bytes_read, USART_PACKET);
+					bytes_read, USART_PACKET, TRUE);
 
 			ESP8266_SendPacket(usart_packet);
 			PacketManager_free(usart_packet);
