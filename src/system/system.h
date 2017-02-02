@@ -13,6 +13,9 @@
 #define SystemTimer			TIMER2_Driver
 #define SYSTEM_TIMER_IRQn	TIM2_IRQn
 
+#define FALSE	0
+#define TRUE	1
+
 void 	system_init(void);
 void	system_error(char *msg);
 void	memory_error(char *msg);
