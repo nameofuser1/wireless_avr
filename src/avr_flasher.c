@@ -14,18 +14,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "avr_flasher.h"
 #include "system/system.h"
+#include "mcu.h"
+#include "avr_flasher.h"
+
 #include "soft_timers/HardwareTimer.h"
 #include "soft_timers/SoftwareTimer.h"
 #include "periph/spi.h"
 #include "common/logging.h"
 
 
-#define RESET_PORT			GPIOA
-#define RESET_PIN			GPIO_Pin_8
-#define RESET_ON()			RESET_PORT->BSRR |= GPIO_BSRR_BR8 //GPIO_ResetBits(RESET_PORT, RESET_PIN)
-#define RESET_OFF()			RESET_PORT->BSRR |= GPIO_BSRR_BS8 //GPIO_SetBits(RESET_PORT, RESET_PIN)
+
 
 
 #define FLASH_MEMORY_BYTE 	0x00
@@ -66,23 +65,13 @@ static bool initialized = false;
 
 void AVRFlasher_Init(AvrMcuData data)
 {
-	mcu_info = data;
-
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);
 
 	SPI1_init();
 
-	GPIO_InitTypeDef reset;
-	GPIO_StructInit(&reset);
-	reset.GPIO_Mode = GPIO_Mode_Out_PP;
-	reset.GPIO_Pin = RESET_PIN;
-	reset.GPIO_Speed = GPIO_Speed_10MHz;
-
-	GPIO_Init(RESET_PORT, &reset);
-	RESET_OFF();
-
+	mcu_info = data;
 	initialized = true;
 }
 
@@ -102,12 +91,7 @@ void AVRFlasher_DeInit(void)
 		free(mcu_info.flash_read_hi_pattern);
 		free(mcu_info.flash_read_lo_pattern);
 
-		GPIO_InitTypeDef reset;
-		reset.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-		reset.GPIO_Pin = RESET_PIN;
-
-		GPIO_Init(RESET_PORT, &reset);
-
+		MCU_RESET_OFF();
 
 		SPI1_disable();
 		initialized = false;
@@ -597,9 +581,9 @@ Packet AVRFlasher_pgm_enable(void)
 			//SPI1_disable();
 
 			delay(PGM_ENABLE_DELAY_MS);
-			RESET_OFF();
+			MCU_RESET_OFF();
 			delay(PGM_ENABLE_DELAY_MS);
-			RESET_ON();
+			MCU_RESET_ON();
 			delay(PGM_ENABLE_DELAY_MS);
 
 			//SPI1_enable();
@@ -612,13 +596,13 @@ Packet AVRFlasher_pgm_enable(void)
 
 void AVRFlasher_reset_enable(void)
 {
-	RESET_OFF();
+	MCU_RESET_OFF();
 }
 
 
 void AVRFlasher_reset_disable(void)
 {
-	RESET_ON();
+	MCU_RESET_ON();
 }
 
 
@@ -709,11 +693,11 @@ static void connect(void)
 	sck_soft();
 	GPIO_ResetBits(GPIOA, GPIO_Pin_5);	// pull sck down
 
-	RESET_ON();
+	MCU_RESET_ON();
 	delay(500);
-	RESET_OFF();
+	MCU_RESET_OFF();
 	delay(PGM_ENABLE_DELAY_MS);
-	RESET_ON();
+	MCU_RESET_ON();
 
 	sck_hard();
 	SPI1_init();

@@ -4,17 +4,20 @@
  *  Created on: 22 дек. 2015 г.
  *      Author: kripton
  */
+#include <stdlib.h>
+#include <string.h>
 
-#include "controller.h"
+#include "system/err.h"
+#include "system/system.h"
 #include "protocol.h"
+#include "mcu.h"
+
 #include "esp8266.h"
 #include "avr_flasher.h"
 #include "UsartBridge.h"
 #include "common/logging.h"
-#include <stdlib.h>
-#include <string.h>
-#include <system/err.h>
-#include <system/system.h>
+
+#include "controller.h"
 
 
 /* Controller states */
@@ -53,6 +56,8 @@ extern char *packet_names[NONE_PACKET];
 void CONTROLLER_init(void)
 {
 	LOGGING_Info("Initializing controller");
+	MCU_Init();
+	MCU_RESET_OFF();
 
 	actions[READY] = CONTROLLER_state_ready;
 	actions[READ_MCU_INFO] = CONTROLLER_state_read_mcu_info;
@@ -68,6 +73,9 @@ void CONTROLLER_DeInit(void)
 {
 	UsartBridge_Stop();
 	UsartBridge_DeInit();
+
+	MCU_RESET_OFF();
+	MCU_DeInit();
 }
 
 
@@ -149,11 +157,11 @@ static void CONTROLLER_state_ready(void)
 
 				if(current_packet->data[0] == RESET_ENABLE)
 				{
-					AVRFlasher_reset_enable();
+					MCU_RESET_ON();
 				}
 				else
 				{
-					AVRFlasher_reset_disable();
+					MCU_RESET_OFF();
 				}
 
 				break;
