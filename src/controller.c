@@ -189,10 +189,15 @@ static void CONTROLLER_state_read_mcu_info(void)
 			if(programmer_type == PROG_AVR)
 			{
 				LOGGING_Info("Getting mcu info in state read prog init\r\n");
-				AvrMcuData mcu_info = AVRFlasher_get_mcu_info(current_packet);
-				AVRFlasher_Init(mcu_info);
 
-				Packet en_packet = AVRFlasher_pgm_enable();
+				AvrMcuData mcu_info = AVRFlasher_get_mcu_info(current_packet->data);
+				uint8_t packet_data[0];
+
+				AVRFlasher_Init(mcu_info);
+				BOOL success = AVRFlasher_pgm_enable();
+				packet_data[0] = (uint8_t)success;
+
+				Packet en_packet = PacketManager_CreatePacket(packet_data, 1, CMD_PACKET, TRUE);
 				ESP8266_SendPacket(en_packet);
 
 				PacketManager_free(en_packet);
@@ -280,7 +285,9 @@ static void prog_mem(Packet mem_packet)
 {
 	if(programmer_type == PROG_AVR)
 	{
-		AvrProgMemData mem_data = AVRFlasher_get_prog_mem_data(mem_packet);
+		AvrProgMemData mem_data = AVRFlasher_get_prog_mem_data(mem_packet->data,
+				mem_packet->data_length);
+
 		if(AVRFlasher_prog_memory(mem_data))
 		{
 			_send_ack();
@@ -305,7 +312,7 @@ static void read_mem(Packet mem_info)
 {
 	if(programmer_type == PROG_AVR)
 	{
-		AvrReadMemData mem_data = AVRFlasher_get_read_mem_data(mem_info);
+		AvrReadMemData mem_data = AVRFlasher_get_read_mem_data(mem_info->data);
 		Packet memory_packet = PacketManager_CreatePacket(NULL, mem_data.bytes_to_read,
 				MEMORY_PACKET, FALSE);
 
