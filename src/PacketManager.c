@@ -168,7 +168,7 @@ PacketManager_CreatePacket(uint8_t *data, uint16_t data_len, PacketType type, in
 	{
 		if(data_len != 0)
 		{
-			packet->data = (uint8_t*)sys_malloc(sizeof(uint8_t) * (packet->data_length));
+			packet->data = sys_malloc(sizeof(uint8_t) * (packet->data_length));
 			memcpy((packet->data), data, data_len*sizeof(uint8_t));
 		}
 		else
@@ -178,7 +178,11 @@ PacketManager_CreatePacket(uint8_t *data, uint16_t data_len, PacketType type, in
 	}
 	else
 	{
-		packet->data = data;
+		if(data_len != 0)
+		{
+			LOGGING_Debug("Alloc %d bytes", packet->data_length);
+			packet->data = sys_malloc(packet->data_length * sizeof(uint8_t));
+		}
 	}
 
 	return packet;
@@ -193,22 +197,29 @@ PacketManager_CreatePacket(uint8_t *data, uint16_t data_len, PacketType type, in
  */
 uint8_t* PacketManager_Packet2Buf(Packet packet, uint32_t *bytes)
 {
-	uint32_t buffer_length = packet->data_length+PACKET_RESERVED_BYTES;
+	//LOGGING_Debug("1");
+	uint32_t buffer_length = packet->data_length + PACKET_RESERVED_BYTES;
 	*bytes = buffer_length;
 
-	uint8_t *buf = (uint8_t*)sys_malloc(sizeof(buffer_length));
+	uint8_t *buf = sys_malloc(sizeof(buffer_length));
+	//LOGGING_Debug("2");
 	uint8_t type_byte = _get_packet_type_byte(packet->type);
+	//LOGGING_Debug("3");
 
 	if(type_byte == NONE_PACKET_BYTE)
 	{
 		system_error("Wrong packet type");
 	}
 
+	//LOGGING_Debug("4");
 	buf[0] = (buffer_length >> 8) & 0xFF;
 	buf[1] = (buffer_length) & 0xFF;
 	buf[2] = (uint8_t)type_byte;
 
+	//LOGGING_Debug("5");
+	//LOGGING_Debug("%d", packet->data_length);
 	memcpy(buf+PACKET_HEADER_SIZE, packet->data, packet->data_length);
+	//LOGGING_Debug("6");
 	uint32_t crc = crc32_native(buf, packet->data_length + PACKET_HEADER_SIZE);
 	/* If using memcpy have to use htonl as arm has little-endian */
 	for(uint32_t i=0; i<CRC_FIELD_SIZE; i++)

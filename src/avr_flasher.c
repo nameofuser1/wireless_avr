@@ -43,6 +43,9 @@ static void _read_eeprom_mem(AvrReadMemData *mem_data, uint8_t *buf);
 
 /* Support functions */
 static void _log_read_mem_info(AvrReadMemData *mem_info);
+static void _log_prog_mem_data(AvrProgMemData *mem_data);
+static void _log_mcu_info(AvrMcuData *mcu_info);
+static void _log_cmd(uint8_t *cmd);
 
 /* Some parsing functions */
 static void AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len,
@@ -67,6 +70,13 @@ void AVRFlasher_Init(AvrMcuData data)
 	SPI1_init();
 
 	mcu_info = data;
+	if(mcu_info.flash_wait_ms == 0)
+	{
+		mcu_info.flash_wait_ms = 1;
+	}
+
+	_log_mcu_info(&mcu_info);
+
 	initialized = true;
 }
 
@@ -123,7 +133,7 @@ AvrMcuData AVRFlasher_get_mcu_info(uint8_t *buf)
 	*/
 
 	init_packet.flash_load_lo_len = buf[k++];
-	init_packet.flash_load_lo_pattern = (char*)malloc(sizeof(char)*init_packet.flash_load_lo_len);
+	init_packet.flash_load_lo_pattern = calloc(init_packet.flash_load_lo_len + 1, sizeof(char));
 
 	//printf("Load lo len: %" PRIu8 "\r\nLoad lo pattern:\r\n ", init_packet.flash_load_lo_len);
 	for(uint32_t i=0; i<init_packet.flash_load_lo_len; i++)
@@ -135,10 +145,11 @@ AvrMcuData AVRFlasher_get_mcu_info(uint8_t *buf)
 			printf("\r\n");
 		}*/
 	}
+	init_packet.flash_load_lo_pattern[k] = '\0';
 	//printf("\r\n");
 
 	init_packet.flash_load_hi_len = buf[k++];
-	init_packet.flash_load_hi_pattern = (char*) malloc(sizeof(char)*init_packet.flash_load_hi_len);
+	init_packet.flash_load_hi_pattern = calloc(init_packet.flash_load_hi_len + 1, sizeof(char));
 
 	//printf("\r\nLoad hi len: %" PRIu8 "\r\nLoad hi pattern:\r\n ", init_packet.flash_load_hi_len);
 	for(uint32_t i=0; i<init_packet.flash_load_hi_len; i++)
@@ -150,10 +161,11 @@ AvrMcuData AVRFlasher_get_mcu_info(uint8_t *buf)
 			printf("\r\n");
 		}*/
 	}
+	init_packet.flash_load_hi_pattern[k] = '\0';
 	//printf("\r\n");
 
 	init_packet.flash_read_lo_len = buf[k++];
-	init_packet.flash_read_lo_pattern = (char*)malloc(sizeof(char)*init_packet.flash_read_lo_len);
+	init_packet.flash_read_lo_pattern = calloc(init_packet.flash_read_lo_len + 1, sizeof(char));
 
 	//printf("\r\nRead lo len: %" PRIu8 "\r\nRead lo pattern:\r\n", init_packet.flash_read_lo_len);
 	for(uint32_t i=0; i<init_packet.flash_read_lo_len; i++)
@@ -167,11 +179,12 @@ AvrMcuData AVRFlasher_get_mcu_info(uint8_t *buf)
 		}
 		*/
 	}
+	init_packet.flash_read_lo_pattern[k] = '\0';
 	//printf("\r\n");
 
 
 	init_packet.flash_read_hi_len = buf[k++];
-	init_packet.flash_read_hi_pattern = (char*)malloc(sizeof(char)*init_packet.flash_read_hi_len);
+	init_packet.flash_read_hi_pattern = calloc(init_packet.flash_read_hi_len + 1, sizeof(char));
 
 	//printf("\r\nRead hi len: %" PRIu8 "\r\nRead hi pattern:\r\n", init_packet.flash_read_hi_len);
 	for(uint32_t i=0; i<init_packet.flash_read_hi_len; i++)
@@ -185,13 +198,14 @@ AvrMcuData AVRFlasher_get_mcu_info(uint8_t *buf)
 		}
 		*/
 	}
+	init_packet.flash_load_hi_pattern[k] = '\0';
 
 
 	init_packet.flash_wait_ms = buf[k++];
 	//printf("\r\nFlash wait: %" PRIu8 "\r\n", init_packet.flash_wait_ms);
 
 	init_packet.eeprom_write_len = buf[k++];
-	init_packet.eeprom_write_pattern = (char*) malloc(sizeof(char)*init_packet.eeprom_write_len);
+	init_packet.eeprom_write_pattern = calloc(init_packet.eeprom_write_len + 1, sizeof(char));
 
 	//printf("\r\nEeprom write len: %" PRIu8 "\r\nEeprom write pattern:\r\n", init_packet.eeprom_write_len);
 	for(uint32_t i=0; i<init_packet.eeprom_write_len; i++)
@@ -205,10 +219,11 @@ AvrMcuData AVRFlasher_get_mcu_info(uint8_t *buf)
 		}
 		*/
 	}
+	init_packet.eeprom_write_pattern[k] = '\0';
 
 
 	init_packet.eeprom_read_len = buf[k++];
-	init_packet.eeprom_read_pattern = (char*) malloc(sizeof(char)*init_packet.eeprom_read_len);
+	init_packet.eeprom_read_pattern = calloc(init_packet.eeprom_read_len + 1, sizeof(char));
 
 	//printf("\r\n\r\nEeprom read len: %" PRIu8 "\r\nEeprom read pattern:\r\n", init_packet.eeprom_read_len);
 	for (uint32_t i=0; i<init_packet.eeprom_read_len; i++)
@@ -223,7 +238,7 @@ AvrMcuData AVRFlasher_get_mcu_info(uint8_t *buf)
 		}
 		*/
 	}
-
+	init_packet.eeprom_read_pattern[k] = '\0';
 
 	init_packet.eeprom_wait_ms = buf[k++];
 	//printf("\r\n\r\nEeprom wait: %" PRIu8 "\r\n", init_packet.eeprom_wait_ms);
@@ -352,37 +367,33 @@ bool AVRFlasher_prog_memory(AvrProgMemData prog_data)
 bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
 {
 	LOGGING_Info("Starting program flash memory\r\n");
+
 	if(prog_data.data_len % 2 != 0)
 	{
 		return false;
 	}
 
+	_log_prog_mem_data(&prog_data);
+
 	uint32_t address = prog_data.start_address;
 	uint8_t answer[AVR_CMD_SIZE];
 	uint8_t cmd[AVR_CMD_SIZE];
 
-	bool _delay = (mcu_info.flash_wait_ms > 0);
+	uint8_t data_byte = 0xFF;
 
 	for(uint8_t i=0; i<prog_data.data_len; i+=2)
 	{
-		uint8_t data_byte = prog_data.data[i];
-
-		if(_delay)
-		{
-			delay(mcu_info.flash_wait_ms);
-		}
-
-		AVRFlasher_create_memory_cmd(mcu_info.flash_load_hi_pattern, mcu_info.flash_load_hi_len,
-				address, data_byte, cmd);
-		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, answer);
-
-		if(_delay)
-		{
-			delay(mcu_info.flash_wait_ms);
-		}
-
+		data_byte = prog_data.data[i];
 		AVRFlasher_create_memory_cmd(mcu_info.flash_load_lo_pattern, mcu_info.flash_load_lo_len,
 				address, data_byte, cmd);
+		_log_cmd(cmd);
+		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, answer);
+		delay(mcu_info.flash_wait_ms);
+
+		data_byte = prog_data.data[i+1];
+		AVRFlasher_create_memory_cmd(mcu_info.flash_load_hi_pattern, mcu_info.flash_load_hi_len,
+				address, data_byte, cmd);
+		_log_cmd(cmd);
 		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, answer);
 
 		address++;
@@ -419,8 +430,8 @@ bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
 bool AVRFlasher_prog_eeprom_mem(AvrProgMemData prog_data)
 {
 	uint32_t address = prog_data.start_address;
-	uint8_t answer[4] = {[0 ... 3] = 0};
-	uint8_t cmd[4] = {[0 ... 3] = 0};
+	uint8_t answer[4];
+	uint8_t cmd[4];
 
 	for(int i=0; i<prog_data.data_len; i++)
 	{
@@ -468,6 +479,7 @@ void AVRFlasher_read_mem(AvrReadMemData *mem_data, uint8_t *buf)
 
 	if(mem_data->mem_t == MEMORY_FLASH)
 	{
+		LOGGING_Debug("Reading flash memory");
 		_read_flash_mem(mem_data, buf);
 	}
 	else if(mem_data->mem_t == MEMORY_EEPROM)
@@ -502,14 +514,16 @@ static void _read_flash_mem(AvrReadMemData *mem_data, uint8_t *buf)
 	uint8_t res[AVR_CMD_SIZE];
 
 	for(int i=0; i<mem_data->bytes_to_read; i+=2)
-	{
+	{;
 		AVRFlasher_create_memory_cmd(mcu_info.flash_read_hi_pattern, mcu_info.flash_read_hi_len,
 				address, 0, cmd);
+
 		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, res);
 		buf[answer_counter++] = res[AVR_CMD_SIZE-1];
 
 		AVRFlasher_create_memory_cmd(mcu_info.flash_read_lo_pattern, mcu_info.flash_read_lo_len,
 				address, 0, cmd);
+
 		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, res);
 		buf[answer_counter++] = res[AVR_CMD_SIZE-1];
 
@@ -610,7 +624,6 @@ void AVRFlasher_reset_disable(void)
 static void
 AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len, uint32_t addr, uint8_t input, uint8_t *cmd)
 {
-	//printf("Begin memory cmd creation\r\n");
 	memset(cmd, 0, sizeof(uint8_t)*AVR_CMD_SIZE);
 
 	uint8_t cmd_byte_offset = 0;
@@ -658,12 +671,6 @@ AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len, uint32_t addr, 
 			cmd_byte_offset += 1;
 		}
 	}
-
-	//printf("Created command is: ");
-	//for(uint32_t i=0; i<AVR_CMD_SIZE; i++)
-	//{
-		//printf("0x%02x ", cmd[i]);
-	//}
 }
 
 
@@ -721,26 +728,61 @@ static void sck_hard(void) {
 }
 
 
-static void _log_read_mem_info(AvrReadMemData *mem_info)
+static void _log_mcu_info(AvrMcuData *mcu_info)
 {
-	LOGGING_Info("Read memory info:");
-	if(mem_info->mem_t == MEMORY_FLASH)
-	{
-		LOGGING_Info("\tMemory type: FLASH");
-	}
-	else if(mem_info->mem_t == MEMORY_EEPROM)
-	{
-		LOGGING_Info("\tMemory type: EEPROM");
-	}
-	else
-	{
-		LOGGING_Info("\tUnknown memory type");
-	}
-
-	LOGGING_Info("\tStart address 0x%08lx\r\n", mem_info->start_address);
-	LOGGING_Info("\tBytes to read %" PRIu32 "\r\n", mem_info->bytes_to_read);
+	LOGGING_Debug("MCU Info:");
+	LOGGING_Debug("\tWrite high flash pattern: %s", mcu_info->flash_load_hi_pattern);
+	LOGGING_Debug("\tWrite low flash pattern: %s", mcu_info->flash_load_lo_pattern);
+	LOGGING_Debug("\tRead high flash pattern: %s", mcu_info->flash_read_hi_pattern);
+	LOGGING_Debug("\tRead high flash pattern: %s", mcu_info->flash_read_lo_pattern);
+	LOGGING_Debug("\tFlash wait ms: %" PRIu8, mcu_info->flash_wait_ms);
+	LOGGING_Debug("\tWrite EEPROM pattern: %s", mcu_info->eeprom_write_pattern);
+	LOGGING_Debug("\tRead EEPROM patter: %s", mcu_info->eeprom_read_pattern);
+	LOGGING_Debug("\tEEPROM wait ms: %" PRIu8 "\r\n", mcu_info->eeprom_wait_ms);
 }
 
 
+static void _log_read_mem_info(AvrReadMemData *mem_info)
+{
+	LOGGING_Debug("Read memory info:");
+	if(mem_info->mem_t == MEMORY_FLASH)
+	{
+		LOGGING_Debug("\tMemory type: FLASH");
+	}
+	else if(mem_info->mem_t == MEMORY_EEPROM)
+	{
+		LOGGING_Debug("\tMemory type: EEPROM");
+	}
+	else
+	{
+		LOGGING_Debug("\tUnknown memory type");
+	}
+
+	LOGGING_Debug("\tStart address 0x%08lx", mem_info->start_address);
+	LOGGING_Debug("\tBytes to read %" PRIu32, mem_info->bytes_to_read);
+}
+
+
+static void _log_prog_mem_data(AvrProgMemData *mem_data)
+{
+	LOGGING_Debug("Programming memory data:");
+	if(mem_data->memory_type == MEMORY_FLASH)
+	{
+		LOGGING_Debug("\tMemory type: FLASH");
+	}
+	else
+	{
+		LOGGING_Debug("\tMemory type: EEPROM");
+	}
+
+	LOGGING_Debug("\tStart address: 0x%04x", mem_data->start_address);
+	LOGGING_Debug("\tBytes to write: %" PRIu8, mem_data->data_len);
+}
+
+static void _log_cmd(uint8_t *cmd)
+{
+	LOGGING_Debug("CMD: 0x%02x 0x%02x 0x%02x 0x%02x",
+			cmd[0], cmd[1], cmd[2], cmd[3]);
+}
 
 

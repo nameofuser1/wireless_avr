@@ -50,7 +50,7 @@ int main(void)
 
 	ESP8266_Init();
 	EspUpdater_Init(115200);
-	LOGGING_Info("Wainting for esp");
+	LOGGING_Info("Waiting for esp");
 
 	/*
 	 * I know, I know...

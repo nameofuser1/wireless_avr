@@ -294,8 +294,10 @@ bool ESP8266_SendPacket(Packet packet)
 	{
 		uint32_t buf_len = 0;
 
-		PacketBuffer packet_buf = (PacketBuffer)sys_malloc(sizeof(struct _packet_buffer));
+		PacketBuffer packet_buf = sys_malloc(sizeof(struct _packet_buffer));
+		//LOGGING_Debug("Creating packet buffer");
 		packet_buf->buf = PacketManager_Packet2Buf(packet, &buf_len);
+		//LOGGING_Debug("Created packet buffer");
 		packet_buf->length = buf_len;
 
 		if(CircularBuffer_is_empty(&outcome_packets_buffer))
@@ -312,6 +314,8 @@ bool ESP8266_SendPacket(Packet packet)
 		}
 
 		return true;
+
+		LOGGING_Debug("Sent pack");
 	}
 
 	return false;

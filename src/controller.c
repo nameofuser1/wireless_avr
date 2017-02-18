@@ -191,7 +191,7 @@ static void CONTROLLER_state_read_mcu_info(void)
 				LOGGING_Info("Getting mcu info in state read prog init\r\n");
 
 				AvrMcuData mcu_info = AVRFlasher_get_mcu_info(current_packet->data);
-				uint8_t packet_data[0];
+				uint8_t packet_data[1];
 
 				AVRFlasher_Init(mcu_info);
 				BOOL success = AVRFlasher_pgm_enable();
@@ -317,9 +317,11 @@ static void read_mem(Packet mem_info)
 				MEMORY_PACKET, FALSE);
 
 		AVRFlasher_read_mem(&mem_data, memory_packet->data);
+		LOGGING_Debug("Read memory");
 		_send_packet(memory_packet);
+		LOGGING_Debug("Sending packet");
 		PacketManager_free(memory_packet);
-
+		LOGGING_Debug("Clear memory packet");
 		state = READ_CMD;
 	}
 }

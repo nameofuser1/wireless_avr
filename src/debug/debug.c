@@ -15,7 +15,7 @@ static void HardFault_Handler(void) __attribute((naked));
 static void prvGetRegisterFromStack(uint32_t *pulFaultStackAddress);
 
 
-static void HardFault_Handler(void)
+void HardFault_Handler(void)
 {
 	__asm volatile
 	(
