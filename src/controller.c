@@ -257,7 +257,7 @@ static void load_cmd(Packet cmd_packet)
 	if(programmer_type == PROG_AVR)
 	{
 		uint8_t res[AVR_CMD_SIZE];
-		if(AVRFlasher_send_command(cmd_packet->data, cmd_packet->data_length, res))
+		if(AVRFlasher_send_command(cmd_packet->data, res))
 		{
 			Packet result_packet = PacketManager_CreatePacket(res, AVR_CMD_SIZE, CMD_PACKET, TRUE);
 			ESP8266_SendPacket(result_packet);

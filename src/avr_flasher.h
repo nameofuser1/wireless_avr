@@ -79,7 +79,7 @@ AvrMcuData		AVRFlasher_get_mcu_info(uint8_t *buf);
 AvrProgMemData	AVRFlasher_get_prog_mem_data(uint8_t *buf, uint32_t len);
 AvrReadMemData	AVRFlasher_get_read_mem_data(uint8_t *buf);
 
-bool 			AVRFlasher_send_command(uint8_t *cmd, uint8_t len, uint8_t *res);
+bool 			AVRFlasher_send_command(uint8_t *cmd, uint8_t *res);
 bool 			AVRFlasher_prog_memory(AvrProgMemData mem_data);
 bool			AVRFlasher_prog_flash_mem(AvrProgMemData mem_data);
 bool 			AVRFlasher_prog_eeprom_mem(AvrProgMemData prog_data);

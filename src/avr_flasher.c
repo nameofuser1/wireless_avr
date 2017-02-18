@@ -47,6 +47,12 @@ static void _log_prog_mem_data(AvrProgMemData *mem_data);
 static void _log_mcu_info(AvrMcuData *mcu_info);
 static void _log_cmd(uint8_t *cmd);
 
+/**/
+static inline void _flash_delay(void);
+static inline void _eeprom_delay(void);
+
+static inline bool _check_cmd_success(uint8_t *cmd, uint8_t *answer);
+
 /* Some parsing functions */
 static void AVRFlasher_create_memory_cmd(char *pattern, uint8_t pattern_len,
 		uint32_t addr, uint8_t input, uint8_t *cmd);
@@ -70,11 +76,6 @@ void AVRFlasher_Init(AvrMcuData data)
 	SPI1_init();
 
 	mcu_info = data;
-	if(mcu_info.flash_wait_ms == 0)
-	{
-		mcu_info.flash_wait_ms = 1;
-	}
-
 	_log_mcu_info(&mcu_info);
 
 	initialized = true;
@@ -315,14 +316,9 @@ AvrReadMemData	AVRFlasher_get_read_mem_data(uint8_t *buf)
  * Send command to AVR
  * *******************************************
  */
-bool AVRFlasher_send_command(uint8_t *cmd, uint8_t len, uint8_t *res)
+bool AVRFlasher_send_command(uint8_t *cmd, uint8_t *res)
 {
-	if(len != AVR_CMD_SIZE)
-	{
-		return false;
-	}
-
-	for(int i=0; i<len; i++)
+	for(int i=0; i<AVR_CMD_SIZE; i++)
 	{
 		SPI1_write(cmd[i]);
 
@@ -380,45 +376,41 @@ bool AVRFlasher_prog_flash_mem(AvrProgMemData prog_data)
 	uint8_t cmd[AVR_CMD_SIZE];
 
 	uint8_t data_byte = 0xFF;
+	uint8_t _delay = (mcu_info.flash_wait_ms > 0);
 
 	for(uint8_t i=0; i<prog_data.data_len; i+=2)
 	{
+		/* Loading low byte */
 		data_byte = prog_data.data[i];
 		AVRFlasher_create_memory_cmd(mcu_info.flash_load_lo_pattern, mcu_info.flash_load_lo_len,
 				address, data_byte, cmd);
-		_log_cmd(cmd);
-		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, answer);
-		delay(mcu_info.flash_wait_ms);
 
+		AVRFlasher_send_command(cmd, answer);
+
+		if(!_check_cmd_success(cmd, answer))
+		{
+			return false;
+		}
+
+		_flash_delay();
+
+		/* Loading  high byte */
 		data_byte = prog_data.data[i+1];
 		AVRFlasher_create_memory_cmd(mcu_info.flash_load_hi_pattern, mcu_info.flash_load_hi_len,
 				address, data_byte, cmd);
-		_log_cmd(cmd);
-		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, answer);
 
-		address++;
+		AVRFlasher_send_command(cmd, answer);
 
-		/*
-		 * Check for error
-		 * One time for two commands
-		 */
-		for(uint8_t j=1; j<AVR_CMD_SIZE; j++)
+		if(!_check_cmd_success(cmd, answer))
 		{
-			if(answer[j] != cmd[j-1])
-			{
-				LOGGING_Error("Failed when programming. Wrong bytes returned.");
-				LOGGING_Error("Command: 0x%02x 0x%02x 0x%02x 0x%02x",
-						cmd[0], cmd[1], cmd[2], cmd[3]);
-				LOGGING_Error("Answer: 0x%02x 0x%02x 0x%02x 0x%02x",
-						answer[0], answer[1], answer[2], answer[3]);
-
-				return false;
-			}
+			return false;
 		}
+
+		_flash_delay();
+		address++;
 	}
 
 	LOGGING_Info("Successfully wrote flash memory\r\n");
-
 	return true;
 }
 
@@ -436,27 +428,21 @@ bool AVRFlasher_prog_eeprom_mem(AvrProgMemData prog_data)
 	for(int i=0; i<prog_data.data_len; i++)
 	{
 		uint8_t data_byte = prog_data.data[i];
-
 		AVRFlasher_create_memory_cmd(mcu_info.eeprom_write_pattern, mcu_info.eeprom_write_len,
 				address, data_byte, cmd);
-		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, answer);
+
+		AVRFlasher_send_command(cmd, answer);
+
+		if(!_check_cmd_success(cmd, answer))
+		{
+			return false;
+		}
 
 		address++;
 
-		for(int j=1; j<AVR_CMD_SIZE; j++)
-		{
-			if(answer[j] != cmd[j-1])
-			{
-				LOGGING_Error("Failed while programming EEPROM memory. Wrong bytes returned.");
-				return false;
-			}
-		}
-
-		if(mcu_info.eeprom_wait_ms > 0)
-		{
-			delay(mcu_info.eeprom_wait_ms);
-		}
+		_eeprom_delay();
 	}
+
 	return true;
 }
 
@@ -518,13 +504,13 @@ static void _read_flash_mem(AvrReadMemData *mem_data, uint8_t *buf)
 		AVRFlasher_create_memory_cmd(mcu_info.flash_read_hi_pattern, mcu_info.flash_read_hi_len,
 				address, 0, cmd);
 
-		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, res);
+		AVRFlasher_send_command(cmd, res);
 		buf[answer_counter++] = res[AVR_CMD_SIZE-1];
 
 		AVRFlasher_create_memory_cmd(mcu_info.flash_read_lo_pattern, mcu_info.flash_read_lo_len,
 				address, 0, cmd);
 
-		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, res);
+		AVRFlasher_send_command(cmd, res);
 		buf[answer_counter++] = res[AVR_CMD_SIZE-1];
 
 		address++;
@@ -548,7 +534,7 @@ static void _read_eeprom_mem(AvrReadMemData *mem_info, uint8_t *buf)
 		AVRFlasher_create_memory_cmd(read_pattern, read_pattern_len,
 				address, 0, cmd);
 
-		AVRFlasher_send_command(cmd, AVR_CMD_SIZE, res);
+		AVRFlasher_send_command(cmd, res);
 		buf[answer_counter++] = res[AVR_CMD_SIZE-1];
 
 		address++;
@@ -574,7 +560,7 @@ BOOL AVRFlasher_pgm_enable(void)
 	for(uint32_t i=0; i<PGM_ENABLE_RETRIES; i++)
 	{
 		SPI1_enable();
-		AVRFlasher_send_command(mcu_info.pgm_enable, AVR_CMD_SIZE, res);
+		AVRFlasher_send_command(mcu_info.pgm_enable, res);
 
 		if(res[2] == mcu_info.pgm_enable[1])
 		{
@@ -779,10 +765,48 @@ static void _log_prog_mem_data(AvrProgMemData *mem_data)
 	LOGGING_Debug("\tBytes to write: %" PRIu8, mem_data->data_len);
 }
 
+
 static void _log_cmd(uint8_t *cmd)
 {
 	LOGGING_Debug("CMD: 0x%02x 0x%02x 0x%02x 0x%02x",
 			cmd[0], cmd[1], cmd[2], cmd[3]);
 }
 
+
+static inline void _flash_delay(void)
+{
+	if(mcu_info.flash_wait_ms > 0)
+	{
+		delay(mcu_info.flash_wait_ms);
+	}
+}
+
+
+static inline void _eeprom_delay(void)
+{
+	if(mcu_info.eeprom_wait_ms > 0)
+	{
+		delay(mcu_info.flash_wait_ms);
+	}
+}
+
+
+static inline bool _check_cmd_success(uint8_t *cmd, uint8_t *answer)
+{
+	for(uint8_t j=1; j<AVR_CMD_SIZE; j++)
+	{
+		if(answer[j] != cmd[j-1])
+		{
+			LOGGING_Error("Failed when programming. Wrong bytes returned.");
+			LOGGING_Error("Command: 0x%02x 0x%02x 0x%02x 0x%02x",
+					cmd[0], cmd[1], cmd[2], cmd[3]);
+			LOGGING_Error("Answer: 0x%02x 0x%02x 0x%02x 0x%02x",
+					answer[0], answer[1], answer[2], answer[3]);
+
+			return false;
+		}
+	}
+
+	return true;
+}
 
