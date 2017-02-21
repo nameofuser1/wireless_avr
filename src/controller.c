@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <stdio.h>
+
 #include "system/err.h"
 #include "system/system.h"
 #include "protocol.h"
@@ -93,7 +95,7 @@ uint32_t CONTROLLER_perform_action(void)
 		}
 		else
 		{
-			LOGGING_Info("Got %s packet", packet_names[current_packet->type]);
+			LOGGING_Debug("Got %s packet", packet_names[current_packet->type]);
 
 			if(current_packet->type == LOG_PACKET)
 			{
@@ -313,15 +315,17 @@ static void read_mem(Packet mem_info)
 	if(programmer_type == PROG_AVR)
 	{
 		AvrReadMemData mem_data = AVRFlasher_get_read_mem_data(mem_info->data);
-		Packet memory_packet = PacketManager_CreatePacket(NULL, mem_data.bytes_to_read,
-				MEMORY_PACKET, FALSE);
+		uint8_t dummy[mem_data.bytes_to_read];
+		AVRFlasher_read_mem(&mem_data, dummy);
 
-		AVRFlasher_read_mem(&mem_data, memory_packet->data);
-		LOGGING_Debug("Read memory");
+		Packet memory_packet = PacketManager_CreatePacket(dummy, mem_data.bytes_to_read,
+				MEMORY_PACKET, TRUE);
+
+		LOGGING_Debug("Sending memory packet");
 		_send_packet(memory_packet);
-		LOGGING_Debug("Sending packet");
+		LOGGING_Debug("Sent memory packet");
 		PacketManager_free(memory_packet);
-		LOGGING_Debug("Clear memory packet");
+
 		state = READ_CMD;
 	}
 }
